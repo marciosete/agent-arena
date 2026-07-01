@@ -86,7 +86,7 @@
 | Lint/format            | ESLint 9 flat config (typescript-eslint, **sonarjs**, **security**, react-hooks) + Prettier 3, zero-warnings policy               |
 | Architecture gate      | **dependency-cruiser** — workstream isolation enforced at commit time                                                             |
 | Quality gates          | husky 9 + lint-staged 16, gitleaks (secrets), shellcheck, yamllint, jscpd (duplication), npm audit, OSV-Scanner                   |
-| CI                     | GitHub Actions: quality, secret-scan, security-audit, license-compliance, **CodeQL**, **Dependabot**                              |
+| CI                     | GitHub Actions: quality, secret-scan, security-audit, license-compliance, **Dependabot** (CodeQL requires GHAS on private repos)  |
 | Dev orchestration      | concurrently (`npm run dev` = all five processes, colour-coded)                                                                   |
 
 ### Per workspace

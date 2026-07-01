@@ -9,6 +9,11 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # Majors are reviewed manually — the toolchain is deliberately pinned
+      # (e.g. TS 5.9 / Vite 7 for vitest + plugin compatibility).
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /

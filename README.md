@@ -42,7 +42,7 @@ docs/                  run of show, kickoff prompts, glossary, platform overview
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | pre-commit | gitleaks secrets scan · shellcheck · yamllint · eslint `--max-warnings 0` + prettier on staged files · typecheck touched workspaces · **dependency-cruiser architecture boundaries** · **≥85% coverage on changed files** · jscpd duplication <3% · npm audit (warn) |
 | pre-push   | full test suite · typecheck all workspaces · duplication <3% repo-wide · npm audit (blocking high/critical) · OSV-Scanner (blocking HIGH/CRITICAL)                                                                                                                   |
-| CI         | lint · yamllint · format · architecture · typecheck · tests+coverage · build · duplication · gitleaks · npm audit · OSV · license compliance · **CodeQL** · **Dependabot**                                                                                           |
+| CI         | lint · yamllint · format · architecture · typecheck · tests+coverage · build · duplication · gitleaks · npm audit · OSV · license compliance · **Dependabot** (CodeQL needs GHAS on private repos — re-add if made public)                                           |
 
 The bar is deliberately real: the point of the showcase is not "agents write code fast",
 it's "agents ship **enterprise-grade** code fast — through the same gates humans face."
