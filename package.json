@@ -5,7 +5,8 @@
   "description": "Agent Arena — Road to the Final. A World Cup sportsbook built live by one engineer and a fleet of Claude agents.",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22",
+    "npm": ">=11"
   },
   "workspaces": [
     "contracts",
