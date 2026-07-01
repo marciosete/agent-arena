@@ -10,8 +10,8 @@ workstream. You are one of those sessions. The audience is watching. Ship like a
 2. **`contracts/` is frozen.** Import from `@arena/contracts`; never modify it. If a contract
    seems wrong, flag it to the host — don't work around it.
 3. **Never edit shared config**: root `package.json`, lockfile, `eslint.config.mjs`,
-   `tsconfig.base.json`, `.dependency-cruiser.cjs`, `.husky/`, `scripts/`, `.github/`,
-   `docker-compose.yml`. They are pre-built.
+   `tsconfig.base.json`, `.dependency-cruiser.cjs`, `.husky/`, `scripts/`, `.github/`.
+   They are pre-built.
 4. **Never add dependencies.** Everything you need is installed. If you believe you need a new
    package, ask the host.
 5. **Never run `git commit` or `git push`.** The host commits at milestones (avoids index-lock
@@ -33,8 +33,8 @@ workstream. You are one of those sessions. The audience is watching. Ship like a
 | bots       | `bots/`               | —    | —                                                           | Autonomous punter agents betting into the platform |
 
 Services are **NestJS 11** (modules, DI, controllers, providers — canonical patterns).
-Persisted services use **Prisma** on Postgres (Neon in the cloud, or the local Docker fallback);
-you design the models in `prisma/schema.prisma` and apply them with `npx prisma migrate dev`.
+Persisted services use **Prisma** on Postgres (Neon); you design the models in
+`prisma/schema.prisma` and apply them with `npx prisma migrate dev`.
 
 Everything speaks the REST surface defined in `contracts/src/api.ts` (ports, endpoints,
 request/response zod schemas). Seed data (real World Cup 2026 bracket) is exported as

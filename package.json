@@ -38,8 +38,6 @@
     "audit:ci": "./scripts/audit-ci.sh",
     "osv:scan": "osv-scanner -L package-lock.json --format table",
     "osv:scan:high": "./scripts/osv-ci.sh",
-    "db:up": "docker compose up -d",
-    "db:down": "docker compose down",
     "ticker": "./scripts/ticker.sh",
     "postinstall": "npm run build -w contracts && npm run prisma:generate --workspaces --if-present",
     "prepare": "husky"

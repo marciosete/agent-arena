@@ -15,8 +15,6 @@ paths = [
     '''docs/.*\.md''',
     '''package-lock\.json''',
     '''\.env\.example''',
-    '''docker-compose\.yml''',
-    '''scripts/db-init\.sql''',
 ]
 
 regexes = [

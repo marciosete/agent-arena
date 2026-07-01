@@ -80,7 +80,7 @@
 | Runtime / package mgmt | Node 22, npm workspaces (single lockfile, hoisted deps)                                                                           |
 | Language               | TypeScript 5.9, `strict` everywhere                                                                                               |
 | Backend framework      | **NestJS 11** — modules, DI, controllers/providers, `@nestjs/testing`                                                             |
-| Database               | **Postgres via Prisma 6** — Neon (serverless) as primary, `docker-compose.yml` as offline fallback                                |
+| Database               | **Postgres via Prisma 6** on Neon (serverless), env-driven connection strings per service                                         |
 | Contracts & validation | zod 3 schemas in `@arena/contracts` — types + runtime validation + seed data (compiled package: CJS for Nest, TS source for Vite) |
 | Testing                | Vitest 3 + V8 coverage in every workspace (SWC transform for Nest decorators); supertest for HTTP                                 |
 | Lint/format            | ESLint 9 flat config (typescript-eslint, **sonarjs**, **security**, react-hooks) + Prettier 3, zero-warnings policy               |

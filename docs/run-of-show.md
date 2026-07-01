@@ -19,9 +19,8 @@ enterprise-grade software — through real quality gates — in one sitting.
       (set scores/winner/status, fill the R16 team slots) — `npm test -w contracts` validates it.
       Commit: `checkpoint-0.1: real bracket as of this morning`.
 - [ ] **Database**: paste your Neon connection strings into `services/betting/.env` and
-      `services/pricing/.env` (templates in each `.env.example`). Verify with
-      `npx prisma migrate status` in each service. Don't trust the venue wifi? Start Docker
-      Desktop and `npm run db:up` instead — the `.env.example` local URLs point at it.
+      `services/pricing/.env` (templates in each `.env.example`). Verify connectivity with
+      `npx prisma migrate status` in each service — do this on the venue wifi, not just at home.
 - [ ] `npm install && npm test && npm run dev` — everything green, all health dots online.
 - [ ] `claude` logged in; `gitleaks`, `shellcheck`, `yamllint`, `osv-scanner`, `jq` on PATH
       (`brew install` if not).

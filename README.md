@@ -13,15 +13,12 @@ of frozen, contract-first APIs. Services are NestJS; money and markets live in P
 
 ```bash
 npm install          # installs all workspaces, builds contracts, generates prisma clients, installs git hooks
-cp services/betting/.env.example services/betting/.env    # then paste your Neon URL (or keep the local one)
+cp services/betting/.env.example services/betting/.env    # then paste your Neon URL
 cp services/pricing/.env.example services/pricing/.env
 npm run dev          # start everything (apps + services, colour-coded)
 npm test             # full test suite
 npm run ticker       # big-screen build telemetry
 ```
-
-No Neon / no wifi? `npm run db:up` starts a local Postgres in Docker that matches the
-`.env.example` URLs.
 
 Punter app: http://localhost:5173 · Trader ops: http://localhost:5174
 
