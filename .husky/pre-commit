@@ -1,0 +1,51 @@
+# Progressive quality gates on staged files — modelled on euda-app.
+# Order: secrets → shell hygiene → lint/format → new-code coverage → duplication → audit.
+
+echo "🔍 Checking for secrets..."
+gitleaks protect --staged --verbose || {
+  echo ""
+  echo "❌ Secrets detected! Commit blocked."
+  echo "💡 Remove secrets, or allowlist false positives in .gitleaks.toml"
+  echo ""
+  exit 1
+}
+
+echo "🔍 Checking bash scripts..."
+STAGED_SHELL_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.sh$' || true)
+if [[ -n "$STAGED_SHELL_FILES" ]]; then
+  echo "$STAGED_SHELL_FILES" | xargs shellcheck || {
+    echo ""
+    echo "❌ Shellcheck found issues in bash scripts"
+    echo "💡 Fix shellcheck errors before committing"
+    echo ""
+    exit 1
+  }
+fi
+
+echo "🔍 Linting and formatting staged files (zero warnings tolerated)..."
+npx lint-staged || {
+  echo ""
+  echo "❌ Linting failed on staged files"
+  echo "💡 Run 'npm run lint:fix' to auto-fix issues"
+  echo ""
+  exit 1
+}
+
+echo "🔍 Checking test coverage on changed files (≥80% required)..."
+npm run check:new-code-coverage || {
+  echo ""
+  echo "❌ Test coverage below 80% on changed files"
+  echo "💡 Add tests for your changes to meet the coverage requirement"
+  echo ""
+  exit 1
+}
+
+npm run check:staged-duplicates || exit 1
+
+echo "🔒 Checking for dependency vulnerabilities..."
+npm audit --omit=dev --audit-level=high >/dev/null 2>&1 || {
+  echo ""
+  echo "⚠️  WARNING: vulnerabilities detected in dependencies"
+  echo "   Run 'npm audit' for details — CI blocks on critical/high"
+  echo ""
+}

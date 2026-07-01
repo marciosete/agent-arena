@@ -1,0 +1,32 @@
+# Gitleaks configuration for Agent Arena
+# Default rules + allowlists for docs and fixtures
+
+title = "Agent Arena Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist for false positives"
+
+paths = [
+    '''README\.md''',
+    '''CLAUDE\.md''',
+    '''docs/.*\.md''',
+    '''package-lock\.json''',
+    '''\.env\.example''',
+]
+
+regexes = [
+    '''your-.*-here''',
+    '''example\.com''',
+    '''test@example\.com''',
+    '''process\.env\.[A-Z_]+''',
+]
+
+stopwords = [
+    "node_modules",
+    ".git",
+    "dist",
+    "coverage",
+]

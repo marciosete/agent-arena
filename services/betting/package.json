@@ -1,0 +1,20 @@
+{
+  "name": "@arena/betting",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Betting core: accounts, wallets, bet placement, settlement, exposure.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arena/contracts": "*",
+    "fastify": "^5.3.2",
+    "@fastify/cors": "^11.0.1"
+  }
+}

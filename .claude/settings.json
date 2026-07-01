@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run check:*)",
+      "Bash(npm run format:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx prettier:*)",
+      "Bash(npx jscpd:*)",
+      "Bash(node --version)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(curl http://localhost:*)"
+    ],
+    "deny": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Read(./.env)",
+      "Edit(./contracts/**)",
+      "Edit(./package.json)",
+      "Edit(./package-lock.json)",
+      "Edit(./eslint.config.mjs)",
+      "Edit(./tsconfig.base.json)",
+      "Edit(./.husky/**)",
+      "Edit(./scripts/**)",
+      "Edit(./.github/**)"
+    ]
+  }
+}

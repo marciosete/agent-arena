@@ -1,0 +1,40 @@
+# Pre-push: the full suite must be green and the dependency tree clean
+# before anything reaches the remote.
+
+echo "🧪 Running full test suite before push..."
+echo ""
+if ! npm test; then
+  echo ""
+  echo "❌ Tests failed! Fix them before pushing."
+  echo "   Run: npm test"
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "🔍 Typechecking all workspaces..."
+if ! npm run typecheck; then
+  echo ""
+  echo "❌ Typecheck failed! Fix errors before pushing."
+  echo ""
+  exit 1
+fi
+
+echo ""
+echo "🔒 Running OSV-Scanner vulnerability check..."
+if command -v osv-scanner >/dev/null 2>&1; then
+  if ./scripts/osv-ci.sh; then
+    echo "✅ OSV-Scanner passed!"
+  else
+    echo ""
+    echo "❌ HIGH/CRITICAL vulnerabilities found! Fix them before pushing."
+    echo "   Run: npm run osv:scan:high"
+    echo ""
+    exit 1
+  fi
+else
+  echo "⚠️  osv-scanner not installed — skipping. Install: brew install osv-scanner"
+fi
+
+echo ""
+echo "✅ All checks passed! Ready to push."

@@ -1,0 +1,90 @@
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.kicker {
+  color: #d4af37;
+  text-transform: uppercase;
+  letter-spacing: 0.35em;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  margin: 0;
+  background: linear-gradient(180deg, #fdf6d8 0%, #d4af37 60%, #8a6d1d 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.sub {
+  color: #9a9aa8;
+  font-size: 1.1rem;
+  max-width: 40rem;
+  margin: 0;
+}
+
+.services {
+  list-style: none;
+  display: flex;
+  gap: 2.5rem;
+  padding: 1.5rem 0 0;
+  margin: 0;
+}
+
+.service {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #52525f;
+}
+
+.dot.online {
+  background: #22c55e;
+  box-shadow: 0 0 12px #22c55e88;
+}
+
+.dot.offline {
+  background: #ef4444;
+}
+
+.dot.checking {
+  background: #eab308;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.service-name {
+  font-weight: 600;
+}
+
+.service-status {
+  color: #9a9aa8;
+  font-size: 0.85rem;
+}
+
+.hint {
+  color: #5b5b68;
+  font-size: 0.85rem;
+  margin-top: 2rem;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}

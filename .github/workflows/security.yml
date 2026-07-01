@@ -1,0 +1,40 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [main]
+
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security Audit
+        run: npm run audit:ci
+
+      - name: Run OSV-Scanner
+        run: |
+          curl -sL https://github.com/google/osv-scanner/releases/download/v2.0.2/osv-scanner_linux_amd64 -o osv-scanner
+          chmod +x osv-scanner
+          export PATH="$PWD:$PATH"
+          ./scripts/osv-ci.sh
