@@ -18,9 +18,10 @@ enterprise-grade software — through real quality gates — in one sitting.
 - [ ] Update `contracts/src/data/fixtures.json` with last night's real Round-of-32 results
       (set scores/winner/status, fill the R16 team slots) — `npm test -w contracts` validates it.
       Commit: `checkpoint-0.1: real bracket as of this morning`.
-- [ ] **Database**: paste your Neon connection strings into `services/betting/.env` and
-      `services/pricing/.env` (templates in each `.env.example`). Verify connectivity with
-      `npx prisma migrate status` in each service — do this on the venue wifi, not just at home.
+- [ ] **Database**: `.env` files are already wired to Neon (databases `betting` and `pricing`).
+      Verify connectivity with `npx prisma migrate status` in each service — **on the venue
+      wifi**, not just at home. Before the first migration exists, success looks like
+      "The current database is not managed by Prisma Migrate" — that means it connected.
 - [ ] `npm install && npm test && npm run dev` — everything green, all health dots online.
 - [ ] `claude` logged in; `gitleaks`, `shellcheck`, `yamllint`, `osv-scanner`, `jq` on PATH
       (`brew install` if not).
