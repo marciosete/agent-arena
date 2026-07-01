@@ -1,7 +1,7 @@
 # Workstream: Trader Ops
 
 **You own:** `apps/trader-ops/` — nothing else.
-**Port:** 5174 · **Consumes:** betting :4002, pricing :4001, sim :4003 · **Read-only:** `contracts/`
+**Port:** 5174 · **Consumes:** betting :4002, pricing :4001, simulator :4003 · **Read-only:** `contracts/`
 
 ## Mission
 

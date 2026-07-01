@@ -5,7 +5,7 @@ import './App.css';
 type ServiceKey = keyof typeof BASE_URLS;
 type ServiceStatus = 'checking' | 'online' | 'offline';
 
-const SERVICES: ServiceKey[] = ['pricing', 'betting', 'sim'];
+const SERVICES: ServiceKey[] = ['pricing', 'betting', 'simulator'];
 const POLL_INTERVAL_MS = 5_000;
 
 async function checkHealth(service: ServiceKey): Promise<ServiceStatus> {
@@ -21,7 +21,7 @@ export default function App() {
   const [statuses, setStatuses] = useState<Record<ServiceKey, ServiceStatus>>({
     pricing: 'checking',
     betting: 'checking',
-    sim: 'checking',
+    simulator: 'checking',
   });
 
   useEffect(() => {

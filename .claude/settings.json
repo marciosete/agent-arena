@@ -16,7 +16,13 @@
       "Bash(node --version)",
       "Bash(ls:*)",
       "Bash(cat:*)",
-      "Bash(curl http://localhost:*)"
+      "Bash(curl http://localhost:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma validate:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx prisma migrate status:*)",
+      "Bash(npx nest:*)",
+      "Bash(npx depcruise:*)"
     ],
     "deny": [
       "Bash(git commit:*)",

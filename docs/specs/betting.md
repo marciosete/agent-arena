@@ -1,47 +1,61 @@
 # Workstream: Betting Core
 
 **You own:** `services/betting/` — nothing else.
-**Port:** 4002 · **Contract:** `contracts/src/api.ts` (Betting section) · **Read-only:** `contracts/`
+**Port:** 4002 · **Stack:** NestJS + Prisma/Postgres · **Contract:** `contracts/src/api.ts` (Betting section) · **Read-only:** `contracts/`
 
 ## Mission
 
 You are the ledger. Accounts, wallets, bet placement, settlement, and the exposure numbers the
-trading desk lives by. This is the service where correctness is non-negotiable — money moves here.
+trading desk lives by. This is the service where correctness is non-negotiable — money moves
+here, and it moves **in the database**.
+
+## Data model (design it, then `npx prisma migrate dev`)
+
+Define Prisma models in `prisma/schema.prisma` — suggested shape, refine as you see fit:
+
+- **Account** — id, name, balance, isBot, createdAt
+- **Bet** — id, accountId, marketId, selectionId, stake, price, potentialReturn, status,
+  placedAt, settledAt, **idempotencyKey `@unique`** (the DB enforces idempotency, not an if-statement)
+- **LedgerEntry** — id, accountId, delta, balanceAfter, reason, refBetId?, createdAt —
+  **append-only**: no updates, no deletes
+
+The scaffold's `PrismaService` is wired (global module); the connection string comes from
+`BETTING_DATABASE_URL` (see `.env.example`).
 
 ## Requirements
 
-1. **`POST /accounts`** — validated with `CreateAccountRequestSchema`. Every account opens with
-   `OPENING_BALANCE` (10,000). Returns an `AccountSchema` payload.
+1. **`POST /accounts`** — validated with `CreateAccountRequestSchema`. Opens with
+   `OPENING_BALANCE` (10,000) and writes the opening ledger entry in the same transaction.
 2. **`GET /accounts` / `GET /accounts/:id`** — list and fetch (404 unknown).
 3. **`POST /bets`** — validated with `PlaceBetRequestSchema`. Rules:
-   - account exists; stake ≤ balance; market exists and is `open` (fetch market state from
-     pricing `GET /markets/:fixtureId` or cache of `GET /markets`);
-   - **price tolerance**: reject with 409 if the current price differs from `acceptedPrice` by
-     more than 5%;
-   - **idempotency**: same `idempotencyKey` returns the original bet, never a duplicate;
-   - atomically debit the wallet, record the bet as `pending` with `potentialReturn = stake × price`.
+   - account exists; stake ≤ balance; market exists and is `open` (check pricing via
+     `GET :4001/markets` or a short-lived cache);
+   - **price tolerance**: 409 if current price differs from `acceptedPrice` by more than 5%;
+   - **idempotency**: same `idempotencyKey` returns the original bet (unique constraint +
+     catch, or upsert — let the database be the referee);
+   - wallet debit + bet insert + ledger entry in **one `$transaction`**.
 4. **`GET /bets?accountId=&status=`** — filterable listing (validate query with `BetQuerySchema`).
-5. **`POST /settle`** — validated with `SettleRequestSchema`; called by sim. For each affected
-   market: bets on the winning selection → `won`, credit `potentialReturn`; others → `lost`.
-   Must be idempotent per fixture (second call = no-op). Returns `SettleResponseSchema`.
+5. **`POST /settle`** — validated with `SettleRequestSchema`; called by the simulator. Winners →
+   `won` + credit `potentialReturn` + ledger entry; losers → `lost`. Transactional and
+   **idempotent per fixture** (second call = no-op).
 6. **`GET /exposure`** — `ExposureReportSchema`: per market, total staked, bet count, and
    **max liability** (worst-case payout across selections minus stakes held).
-7. **Audit log**: every balance movement appends an immutable ledger entry
-   (who, what, when, delta, balance-after). Expose `GET /accounts/:id/ledger` (shape is yours —
-   it's within your service; document it in your README).
+7. **`GET /accounts/:id/ledger`** — the audit trail (shape is yours; document it in a README).
 
 ## Enterprise bar
 
-- Wallet/ledger logic in pure modules behind a small repository interface (in-memory today, DB
-  tomorrow) — unit-tested, including the nasty cases: double-spend attempt, unknown selection,
-  settle-twice, stake > balance.
-- Zod-validate everything inbound. Meaningful 400/404/409 bodies.
-- ≥80% coverage on everything you commit; zero lint warnings.
+- Domain rules (tolerance maths, liability maths, settlement outcomes) as pure functions with
+  exhaustive unit tests — no DB needed to test the maths.
+- Controllers thin; providers orchestrate; **mock `PrismaService`** in unit tests (standard
+  Nest DI override). The nasty cases are the spec: double-spend, unknown selection,
+  settle-twice, stake > balance, replayed idempotency key.
+- Zod-validate everything inbound (a ZodValidationPipe is idiomatic). Meaningful 400/404/409s.
+- ≥85% coverage on everything you commit; zero lint warnings; no cross-workstream imports.
 
 ## Demo moment
 
-Place the same bet twice with one idempotency key — one bet exists, one debit. Then settle a
-fixture and watch `GET /exposure` collapse to zero for that market while wallets update.
+Place the same bet twice with one idempotency key — one row, one debit, the unique constraint
+did the work. Then settle a fixture and read the ledger back: every cent accounted for.
 
 ## Stretch
 

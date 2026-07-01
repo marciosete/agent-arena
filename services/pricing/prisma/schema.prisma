@@ -1,0 +1,17 @@
+// Pricing-engine database schema.
+// The models (Market, Selection, price history, ...) are designed and migrated
+// LIVE by the pricing workstream — see docs/specs/pricing.md.
+//
+// Workflow:
+//   1. define models below
+//   2. npx prisma migrate dev --name <migration-name>   (creates + applies migration)
+//   3. npx prisma generate                               (refresh the typed client)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PRICING_DATABASE_URL")
+}

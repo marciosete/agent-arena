@@ -1,0 +1,19 @@
+# yamllint configuration — pragmatic profile for workflow/compose files
+extends: default
+
+ignore: |
+  node_modules/
+  dist/
+  coverage/
+  package-lock.json
+
+rules:
+  line-length:
+    max: 140
+    level: warning
+  document-start: disable
+  truthy:
+    # GitHub Actions uses "on:" as a key
+    allowed-values: ['true', 'false', 'on']
+  comments:
+    min-spaces-from-content: 1

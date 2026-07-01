@@ -4,7 +4,7 @@ Open six terminal tabs in the repo root, start `claude` in each, and paste one b
 Each prompt is tuned to showcase a different frontier capability — that's your narration hook
 when you rotate between sessions.
 
-Suggested launch order: **pricing → betting → sim → punter-web → trader-ops → bots**
+Suggested launch order: **pricing → betting → simulator → punter-web → trader-ops → bots**
 (bots last; they degrade gracefully while services come up, but they're more fun once markets
 exist).
 
@@ -16,13 +16,15 @@ exist).
 You are the PRICING workstream of Agent Arena. Read CLAUDE.md, docs/specs/pricing.md, and the
 contracts package (contracts/src/api.ts, contracts/src/schemas.ts) before writing any code.
 
-Start in plan mode: present me your probability model, margin approach, and Monte Carlo design
-for approval before implementing.
+Start in plan mode: present me your probability model, margin approach, Monte Carlo design, and
+Prisma data model for approval before implementing.
 
 You own ONLY services/pricing/. Implement the full spec with unit tests as you go — the commit
-gates require ≥80% coverage on changed files and zero lint warnings. When done, run
+gates require ≥85% coverage on changed files and zero lint warnings. Design your Prisma models,
+apply them with `npx prisma migrate dev --name init`, and keep all domain maths in pure tested
+modules with PrismaService mocked in unit tests. When done, run
 `npm test -w services/pricing`, `npm run typecheck -w services/pricing`, and `npm run lint`,
-then report: endpoints shipped, model summary, test count, and anything you'd flag to the desk.
+then report: endpoints shipped, model summary, migration applied, test count.
 ```
 
 ## 2 · Betting (showcase: strict TDD — the money service earns trust test-first)
@@ -32,27 +34,30 @@ You are the BETTING workstream of Agent Arena. Read CLAUDE.md, docs/specs/bettin
 contracts package (contracts/src/api.ts, contracts/src/schemas.ts) before writing any code.
 
 Work strictly test-first: for each behaviour in the spec (idempotent bet placement, price
-tolerance, atomic wallet debits, idempotent settlement, exposure maths, the ledger), write the
-failing test, then make it pass. Money moves here — the nasty edge cases ARE the spec.
+tolerance, transactional wallet debits, idempotent settlement, exposure maths, the append-only
+ledger), write the failing test, then make it pass. Money moves here — the nasty edge cases
+ARE the spec, and the database enforces the invariants (unique idempotency keys, $transaction).
 
-You own ONLY services/betting/. When done, run `npm test -w services/betting`,
-`npm run typecheck -w services/betting`, and `npm run lint`, then report: endpoints shipped,
-edge cases covered, test count.
+You own ONLY services/betting/. Design your Prisma models, apply them with
+`npx prisma migrate dev --name init`, and mock PrismaService in unit tests. When done, run
+`npm test -w services/betting`, `npm run typecheck -w services/betting`, and `npm run lint`,
+then report: endpoints shipped, edge cases covered, migration applied, test count.
 ```
 
-## 3 · Sim (showcase: autonomous multi-step build with external integrations)
+## 3 · Simulator (showcase: autonomous multi-step build with external integrations)
 
 ```text
-You are the SIM workstream of Agent Arena. Read CLAUDE.md, docs/specs/sim.md, and the contracts
-package (contracts/src/api.ts, contracts/src/schemas.ts) before writing any code.
+You are the SIMULATOR workstream of Agent Arena. Read CLAUDE.md, docs/specs/simulator.md, and
+the contracts package (contracts/src/api.ts, contracts/src/schemas.ts) before writing any code.
 
-You own ONLY sim/. Build the full spec: seedable result generation, bracket advancement, the
-play-next / run / state / reset endpoints, and the downstream notifications to pricing and
-betting (which may not be running yet — degrade gracefully, never corrupt your state).
-Bracket advancement correctness is the heart of the finale: test it exhaustively.
+You own ONLY services/simulator/. Build the full spec: seedable result generation, bracket
+advancement, the play-next / run / state / reset endpoints, and the downstream notifications to
+pricing and betting (which may not be running yet — degrade gracefully, never corrupt your
+state). Your state is in-memory BY DESIGN — ephemeral theatre with a reset button. Bracket
+advancement correctness is the heart of the finale: test it exhaustively.
 
-When done, run `npm test -w sim`, `npm run typecheck -w sim`, and `npm run lint`, then report:
-endpoints shipped, how determinism works, test count.
+When done, run `npm test -w services/simulator`, `npm run typecheck -w services/simulator`,
+and `npm run lint`, then report: endpoints shipped, how determinism works, test count.
 ```
 
 ## 4 · Punter web (showcase: design taste + visual iteration)
@@ -67,7 +72,8 @@ rings, golden winner paths converging on a glowing trophy. Hand-rolled SVG, no n
 Build the typed zod-parsing fetch layer first, then markets → bet slip → my bets → bracket.
 
 When done, run `npm test -w apps/punter-web`, `npm run typecheck -w apps/punter-web`, and
-`npm run lint`, then report: pages shipped, how the bracket animates during a sim run, test count.
+`npm run lint`, then report: pages shipped, how the bracket animates during a simulator run,
+test count.
 ```
 
 ## 5 · Trader ops (showcase: subagent fan-out — one session, parallel component builds)

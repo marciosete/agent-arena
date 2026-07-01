@@ -45,8 +45,15 @@ export default tseslint.config(
     },
   },
   {
-    files: ['services/**/*.ts', 'bots/**/*.ts', 'sim/**/*.ts', 'contracts/**/*.ts'],
+    files: ['services/**/*.ts', 'bots/**/*.ts', 'contracts/**/*.ts'],
     languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
+  {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
       globals: { ...globals.node },
     },
   },

@@ -1,50 +1,62 @@
 # Workstream: Pricing Engine
 
 **You own:** `services/pricing/` — nothing else.
-**Port:** 4001 · **Contract:** `contracts/src/api.ts` (Pricing section) · **Read-only:** `contracts/`
+**Port:** 4001 · **Stack:** NestJS + Prisma/Postgres · **Contract:** `contracts/src/api.ts` (Pricing section) · **Read-only:** `contracts/`
 
 ## Mission
 
 You are the trading floor's quant. Turn team strength into probabilities, probabilities into
 prices, and publish a market for every fixture in the remaining World Cup bracket — plus the
-outright tournament-winner market.
+outright tournament-winner market. Markets are **persisted**: prices survive a restart, and
+every reprice is a recorded event.
+
+## Data model (design it, then `npx prisma migrate dev`)
+
+Define Prisma models in `prisma/schema.prisma` — suggested shape, refine as you see fit:
+
+- **Market** — id, type, fixtureId?, name, status, updatedAt
+- **Selection** — id, marketId, name, price, probability
+- _(stretch)_ **PriceSnapshot** — marketId, selectionId, price, createdAt — the price history
+
+The scaffold's `PrismaService` is wired (global module); the connection string comes from
+`PRICING_DATABASE_URL` (see `.env.example`). Seed/refresh markets on module init from the
+contracts `FIXTURES` (idempotent upserts — restarts must not duplicate markets).
 
 ## Requirements
 
 1. **Probability model.** For a fixture between two known teams, derive win probabilities from
    the Elo ratings in `TEAMS` (logistic expectation). Knockout football always produces a
-   winner, so `MATCH_WINNER` markets have exactly two selections (home/away) — extra time and
-   penalties are baked into the probability.
-2. **Margin.** Convert fair probabilities to decimal prices with the bookmaker margin applied
-   proportionally so the overround equals `TARGET_OVERROUND` (1.05). Price = margin-adjusted,
-   never below 1.01. Keep `probability` (the fair value) on each selection.
-3. **`GET /markets`** — every priceable market. A fixture is priceable when both team slots are
-   known. Include the outright market.
+   winner, so `MATCH_WINNER` markets have exactly two selections — extra time and penalties
+   are baked into the probability.
+2. **Margin.** Convert fair probabilities to decimal prices with the margin applied
+   proportionally so the overround equals `TARGET_OVERROUND` (1.05). Never below 1.01. Keep
+   `probability` (the fair value) on each selection.
+3. **`GET /markets`** — every priceable market (a fixture is priceable when both team slots are
+   known), including the outright. Served from the database.
 4. **`GET /markets/:fixtureId`** — the match-winner market for one fixture (404 if unknown or
    not yet priceable).
 5. **`GET /outright`** — tournament-winner market: one selection per team still alive, priced by
    **Monte Carlo simulation** of the whole remaining bracket (≥10,000 runs) following the
-   `feedsInto`/`feedsIntoSlot` links.
+   `feedsInto`/`feedsIntoSlot` links. Computation in memory; results persisted.
 6. **`POST /reprice`** — body validated with `RepriceRequestSchema`. Apply the settlement
-   (winner advances into the next fixture's slot), then recompute all markets. Newly-priceable
-   fixtures get markets; the settled fixture's market becomes `settled`.
-7. Every response must parse against the `MarketSchema` from contracts — write a test proving it.
+   (winner advances into the next fixture's slot), then recompute and persist all markets:
+   newly-priceable fixtures gain markets, the settled fixture's market flips to `settled`.
+7. Every response must parse against `MarketSchema` from contracts — write a test proving it.
 
 ## Enterprise bar
 
-- Domain logic (Elo→probability, margin application, bracket advancement, Monte Carlo) in pure,
-  unit-tested modules. Routes stay thin.
-- Zod-validate every inbound body; 400 + helpful message on garbage.
-- Seedable RNG for the Monte Carlo so tests are deterministic.
-- ≥80% coverage on everything you commit; zero lint warnings.
+- Domain maths (Elo→probability, margin, bracket advancement, Monte Carlo) in pure, exhaustively
+  unit-tested modules — no DB needed to test the maths. Seedable RNG so tests are deterministic.
+- Controllers thin; providers orchestrate; **mock `PrismaService`** in unit tests.
+- Zod-validate inbound bodies; 400 + helpful message on garbage.
+- ≥85% coverage on everything you commit; zero lint warnings; no cross-workstream imports.
 
 ## Demo moment
 
-`curl :4001/markets/R16-2 | jq` — France heavy favourites over Paraguay, prices that sum to a
-1.05 book. Then `curl :4001/outright | jq` — a full ranked list of title chances, live from
-10k simulated tournaments.
+`curl :4001/markets/R16-2 | jq` — France heavy favourites over Paraguay, prices summing to a
+1.05 book. Kill the service, restart it — the prices are still there. That's the point.
 
 ## Stretch
 
 - `GET /markets?round=QF` filtering.
-- Price history: remember prices per reprice generation, expose `GET /markets/:id/history`.
+- Price history via PriceSnapshot + `GET /markets/:id/history`.

@@ -9,9 +9,12 @@
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",
+    "**/*.spec.tsx",
     "**/*.config.js",
     "**/*.config.ts",
     "**/*.config.mjs",
+    "**/src/main.ts",
+    "**/src/app.module.ts",
     "**/docs/**",
     "**/.husky/**",
     "**/jscpd-report/**"

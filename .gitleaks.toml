@@ -15,6 +15,8 @@ paths = [
     '''docs/.*\.md''',
     '''package-lock\.json''',
     '''\.env\.example''',
+    '''docker-compose\.yml''',
+    '''scripts/db-init\.sql''',
 ]
 
 regexes = [
@@ -22,6 +24,8 @@ regexes = [
     '''example\.com''',
     '''test@example\.com''',
     '''process\.env\.[A-Z_]+''',
+    '''postgresql://arena:arena@localhost''',
+    '''postgresql://<user>:<password>@''',
 ]
 
 stopwords = [

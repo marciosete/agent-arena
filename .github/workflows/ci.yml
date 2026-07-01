@@ -33,8 +33,16 @@ jobs:
       - name: Lint (zero warnings)
         run: npm run lint
 
+      - name: YAML Lint
+        run: |
+          pip install yamllint
+          yamllint .
+
       - name: Format Check
         run: npm run format:check
+
+      - name: Architecture Boundaries (dependency-cruiser)
+        run: npm run check:architecture
 
       - name: Typecheck All Workspaces
         run: npm run typecheck

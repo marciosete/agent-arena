@@ -10,7 +10,7 @@ import { BetStatusSchema, SettlementEventSchema, TeamIdSchema } from './schemas'
 export const PORTS = {
   pricing: 4001,
   betting: 4002,
-  sim: 4003,
+  simulator: 4003,
   punterWeb: 5173,
   traderOps: 5174,
 } as const;
@@ -18,7 +18,7 @@ export const PORTS = {
 export const BASE_URLS = {
   pricing: `http://localhost:${PORTS.pricing}`,
   betting: `http://localhost:${PORTS.betting}`,
-  sim: `http://localhost:${PORTS.sim}`,
+  simulator: `http://localhost:${PORTS.simulator}`,
 } as const;
 
 /** Every account starts with this balance (virtual dollars). */
@@ -113,7 +113,7 @@ export const BetQuerySchema = z.object({
 });
 export type BetQuery = z.infer<typeof BetQuerySchema>;
 
-// ── Sim service (:4003) ────────────────────────────────────────────────
+// ── Simulator service (:4003) ──────────────────────────────────────────
 // GET  /health                → HealthResponse
 // GET  /state                 → SimState        (current bracket incl. simulated results)
 // POST /play-next             → SimState        (simulate the next unplayed fixture)

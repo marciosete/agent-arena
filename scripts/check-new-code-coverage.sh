@@ -1,21 +1,24 @@
 #!/bin/bash
 
-# Check test coverage on STAGED source files only (≥80% required), per workspace.
+# Check test coverage on STAGED source files only (≥85% required), per workspace.
 # Existing untouched code is not penalised — only what you're committing.
 
 set -e
 
-THRESHOLD=80
-WORKSPACES=(contracts services/pricing services/betting apps/punter-web apps/trader-ops bots sim)
+THRESHOLD=85
+WORKSPACES=(contracts services/pricing services/betting services/simulator apps/punter-web apps/trader-ops bots)
 
 echo "🔍 Checking test coverage on changed files (≥${THRESHOLD}% required)..."
 
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=AMR | grep -E '\.(ts|tsx)$' |
   grep -v '\.test\.' |
+  grep -v '\.spec\.' |
   grep -v '__tests__' |
   grep -v '\.d\.ts$' |
   grep -v '\.config\.' |
+  grep -v '\.setup\.' |
   grep -v '/index\.ts$' |
+  grep -v '/main\.ts$' |
   grep -v '/main\.tsx$' |
   grep -v '^scripts/' || true)
 

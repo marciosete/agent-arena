@@ -1,0 +1,17 @@
+// Betting-core database schema.
+// The models (Account, Bet, LedgerEntry, ...) are designed and migrated LIVE
+// by the betting workstream — see docs/specs/betting.md.
+//
+// Workflow:
+//   1. define models below
+//   2. npx prisma migrate dev --name <migration-name>   (creates + applies migration)
+//   3. npx prisma generate                               (refresh the typed client)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("BETTING_DATABASE_URL")
+}

@@ -7,7 +7,7 @@ enterprise-grade software — through real quality gates — in one sitting.
 ## Screen layout
 
 - **Terminal, full screen, big font (18pt+):** 6 tabs = 6 Claude sessions (name the tabs:
-  pricing, betting, sim, punter, trader, bots) + tab 7 `npm run dev` + tab 8 `npm run ticker`.
+  pricing, betting, simulator, punter, trader, bots) + tab 7 `npm run dev` + tab 8 `npm run ticker`.
 - **Browser:** punter-web (5173), trader-ops (5174), and this repo in an editor for spec/code
   walkthroughs.
 - The key art (circular bracket image) as the desktop wallpaper. It is also the design brief
@@ -18,8 +18,13 @@ enterprise-grade software — through real quality gates — in one sitting.
 - [ ] Update `contracts/src/data/fixtures.json` with last night's real Round-of-32 results
       (set scores/winner/status, fill the R16 team slots) — `npm test -w contracts` validates it.
       Commit: `checkpoint-0.1: real bracket as of this morning`.
+- [ ] **Database**: paste your Neon connection strings into `services/betting/.env` and
+      `services/pricing/.env` (templates in each `.env.example`). Verify with
+      `npx prisma migrate status` in each service. Don't trust the venue wifi? Start Docker
+      Desktop and `npm run db:up` instead — the `.env.example` local URLs point at it.
 - [ ] `npm install && npm test && npm run dev` — everything green, all health dots online.
-- [ ] `claude` logged in; `gitleaks`, `shellcheck`, `osv-scanner` on PATH (`brew install` if not).
+- [ ] `claude` logged in; `gitleaks`, `shellcheck`, `yamllint`, `osv-scanner`, `jq` on PATH
+      (`brew install` if not).
 - [ ] Do-not-disturb on, notifications off, font sizes checked from the back of the room.
 - [ ] Optional: `ANTHROPIC_API_KEY` exported if you want the Pundit bot stretch goal.
 

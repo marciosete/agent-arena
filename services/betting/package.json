@@ -2,19 +2,24 @@
   "name": "@arena/betting",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
-  "description": "Betting core: accounts, wallets, bet placement, settlement, exposure.",
+  "description": "Betting core: accounts, wallets, bets, settlement, exposure. NestJS + Prisma on Postgres.",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit"
+    "prisma:generate": "prisma generate"
   },
   "dependencies": {
     "@arena/contracts": "*",
-    "fastify": "^5.3.2",
-    "@fastify/cors": "^11.0.1"
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@prisma/client": "^6.17.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
   }
 }

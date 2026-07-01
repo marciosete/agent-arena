@@ -7,10 +7,15 @@ set -e
 
 echo "🔍 Checking code duplication on staged files..."
 
+# Exclusions mirror .jscpd.json: tests plus Nest bootstrap files that are
+# identical by framework convention (main.ts, app.module.ts).
 STAGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACMR |
   grep -E '\.(ts|tsx)$' |
   grep -v '\.test\.ts$' |
-  grep -v '\.test\.tsx$' || true)
+  grep -v '\.test\.tsx$' |
+  grep -v '\.spec\.ts$' |
+  grep -v '/main\.ts$' |
+  grep -v '/app\.module\.ts$' || true)
 
 if [[ -z "$STAGED_TS_FILES" ]]; then
   echo "✅ No TypeScript files staged. Skipping duplication check."

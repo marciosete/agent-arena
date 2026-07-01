@@ -1,0 +1,19 @@
+# Local Postgres fallback for when Neon (or the venue wifi) is unavailable.
+# Start with: npm run db:up   — then use the local URLs from the .env.example files.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: arena-postgres
+    environment:
+      POSTGRES_USER: arena
+      POSTGRES_PASSWORD: arena # local-only throwaway credentials
+      POSTGRES_DB: betting
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./scripts/db-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U arena -d betting']
+      interval: 5s
+      timeout: 3s
+      retries: 10

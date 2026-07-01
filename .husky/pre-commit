@@ -1,5 +1,6 @@
 # Progressive quality gates on staged files — modelled on euda-app.
-# Order: secrets → shell hygiene → lint/format → new-code coverage → duplication → audit.
+# Order: secrets → shell/yaml hygiene → lint/format → types → architecture →
+#        new-code coverage → duplication → audit.
 
 echo "🔍 Checking for secrets..."
 gitleaks protect --staged --verbose || {
@@ -22,6 +23,18 @@ if [[ -n "$STAGED_SHELL_FILES" ]]; then
   }
 fi
 
+echo "🔍 Checking YAML files..."
+if command -v yamllint >/dev/null 2>&1; then
+  yamllint . || {
+    echo ""
+    echo "❌ yamllint found issues"
+    echo ""
+    exit 1
+  }
+else
+  echo "⚠️  yamllint not installed — skipping. Install: brew install yamllint"
+fi
+
 echo "🔍 Linting and formatting staged files (zero warnings tolerated)..."
 npx lint-staged || {
   echo ""
@@ -31,10 +44,21 @@ npx lint-staged || {
   exit 1
 }
 
-echo "🔍 Checking test coverage on changed files (≥80% required)..."
+echo "🔍 Typechecking touched workspaces..."
+npm run check:staged-types || exit 1
+
+echo "🏛️  Checking architecture boundaries (dependency-cruiser)..."
+npm run check:architecture || {
+  echo ""
+  echo "❌ Architecture violation! Workstreams are isolated — integrate over HTTP, per contracts."
+  echo ""
+  exit 1
+}
+
+echo "🔍 Checking test coverage on changed files (≥85% required)..."
 npm run check:new-code-coverage || {
   echo ""
-  echo "❌ Test coverage below 80% on changed files"
+  echo "❌ Test coverage below 85% on changed files"
   echo "💡 Add tests for your changes to meet the coverage requirement"
   echo ""
   exit 1
@@ -46,6 +70,6 @@ echo "🔒 Checking for dependency vulnerabilities..."
 npm audit --omit=dev --audit-level=high >/dev/null 2>&1 || {
   echo ""
   echo "⚠️  WARNING: vulnerabilities detected in dependencies"
-  echo "   Run 'npm audit' for details — CI blocks on critical/high"
+  echo "   Run 'npm audit' for details — pre-push and CI block on critical/high"
   echo ""
 }

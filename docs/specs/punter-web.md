@@ -1,7 +1,7 @@
 # Workstream: Punter Web
 
 **You own:** `apps/punter-web/` — nothing else.
-**Port:** 5173 · **Consumes:** pricing :4001, betting :4002, sim :4003 · **Read-only:** `contracts/`
+**Port:** 5173 · **Consumes:** pricing :4001, betting :4002, simulator :4003 · **Read-only:** `contracts/`
 
 ## Mission
 
@@ -20,7 +20,8 @@ radiating from a glowing golden trophy. This is the screen everyone photographs.
 3. **Bet slip.** Click a price → slip (selection, price, stake input, potential return). Submit
    via `POST :4002/bets` with a fresh `crypto.randomUUID()` idempotency key and the displayed
    price as `acceptedPrice`. Handle 409 price-moved gracefully (show new price, ask again).
-4. **My bets.** `GET :4002/bets?accountId=` — pending/won/lost with returns. Poll during sim runs.
+4. **My bets.** `GET :4002/bets?accountId=` — pending/won/lost with returns. Poll during
+   simulator runs.
 5. **⭐ The bracket.** An SVG circular knockout bracket in the style of the event's key art:
    fixtures as nodes on concentric rings (R32 outside → final at the centre), team flags/names
    on nodes, golden trophy glow in the middle. Fed by `FIXTURES` + `GET :4003/state`: played
@@ -38,8 +39,9 @@ radiating from a glowing golden trophy. This is the screen everyone photographs.
 
 ## Demo moment
 
-The finale: sim runs, and for two minutes the bracket eats itself alive — paths igniting ring
-by ring until one flag sits beside the trophy. Bets flip to won/lost in the corner as it happens.
+The finale: the simulator runs, and for two minutes the bracket eats itself alive — paths
+igniting ring by ring until one flag sits beside the trophy. Bets flip to won/lost in the
+corner as it happens.
 
 ## Stretch
 
