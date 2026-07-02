@@ -1,4 +1,4 @@
-> **Kickoff — session 2.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
+> **Kickoff — session 2.** Launch with `/goal` — see `docs/workshop/kickoff-prompts.md` for the exact
 > condition. Build rules: `docs/live-build.md`. CLAUDE.md (auto-loaded) has the conventions.
 
 # Workstream: Trader Ops
@@ -15,7 +15,7 @@ World Cup book.
 > **Build order: flags release panel → exposure board → leaderboard → market monitor +
 > settlement feed.** The flags panel ships first because it's the release console the host
 > drives the whole show from. Post a one-line progress update as you finish each. See
-> `docs/mental-map.md`.
+> `docs/workshop/mental-map.md`.
 
 ## Requirements
 

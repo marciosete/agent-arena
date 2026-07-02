@@ -1,4 +1,4 @@
-> **Kickoff — session 1.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
+> **Kickoff — session 1.** Launch with `/goal` — see `docs/workshop/kickoff-prompts.md` for the exact
 > condition. Build rules: `docs/live-build.md`. CLAUDE.md (auto-loaded) has the conventions.
 
 # Workstream: Punter Web
@@ -16,7 +16,7 @@ radiating from a glowing golden trophy. This is the screen everyone photographs.
 > confetti.** The bracket ships first because it renders from `@arena/contracts` + the
 > simulator's `/state` alone (no other service), so it's the fastest big visual. Each feature
 > is gated behind its flag; post a one-line progress update as you finish each. See
-> `docs/mental-map.md`.
+> `docs/workshop/mental-map.md`.
 
 ## Requirements
 

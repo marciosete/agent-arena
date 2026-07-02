@@ -43,8 +43,8 @@ Bots last (they need markets + accounts to exist).
 | 6   | Bots      | `/goal @docs/specs/6-bots.md`      | agents building agents                      | HTTP client + the Sharp bot            |
 
 > **Launch order ≠ reveal order.** You launch all six early; you _reveal_ each finished piece
-> when you flip its flag. The reveal choreography lives in `docs/mental-map.md` and
-> `docs/run-of-show.md`. Simulator has no visible payoff until the finale — if you're worried
+> when you flip its flag. The reveal choreography lives in `docs/workshop/mental-map.md` and
+> `docs/workshop/run-of-show.md`. Simulator has no visible payoff until the finale — if you're worried
 > about its runway, bump it earlier in the launch order; it's the one that can't be rushed.
 
 ## Mid-session management prompts (paste into any session as needed)

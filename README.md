@@ -36,8 +36,9 @@ apps/trader-ops/       trader console            (:5174, React + Vite)
 bots/                  autonomous punter agents
 docs/engineering/      architecture, definition-of-done, goal-oriented-tasks, deployment, security
 docs/domain/           glossary — the betting domain's ubiquitous language
+docs/product/          platform overview
 docs/specs/            one spec per workstream
-docs/                  run of show, kickoff prompts, mental map, overview
+docs/workshop/         run of show, kickoff prompts, mental map (live-build scaffolding)
 render.yaml            Render blueprint — 4 services auto-deploy from main
 ```
 

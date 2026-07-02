@@ -1,4 +1,4 @@
-> **Kickoff — session 4.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
+> **Kickoff — session 4.** Launch with `/goal` — see `docs/workshop/kickoff-prompts.md` for the exact
 > condition. Build rules: `docs/live-build.md`. CLAUDE.md (auto-loaded) has the conventions. Work strictly
 > test-first — money moves here.
 
