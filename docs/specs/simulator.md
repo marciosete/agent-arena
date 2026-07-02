@@ -32,6 +32,13 @@ anyone asks why there's no database here, that's the answer — a design decisio
    `GET /state`). The champion ends up in `SimState.champion`.
 5. **`GET /state` / `POST /reset`** — as scaffolded, kept true throughout.
 
+**Security — the control plane is guarded.** `/reset` already carries `@UseGuards(AdminGuard)`;
+your `POST /play-next` and `POST /run` MUST carry it too. The guard requires the `x-admin-key`
+header to match `SIMULATOR_ADMIN_KEY` (reads stay public; local dev without the key stays open).
+The deployed simulator drives the finale — an unguarded control endpoint is a live-demo
+hijack waiting to happen. When the simulator calls betting `/settle`, send its own admin key
+in the header too (betting's settle endpoint should be guarded — coordinate with that spec).
+
 ## Enterprise bar
 
 - Advancement logic (winner → correct slot of correct fixture) is pure and exhaustively

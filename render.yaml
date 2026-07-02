@@ -43,6 +43,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: '22'
+      - key: SIMULATOR_ADMIN_KEY
+        sync: false
 
   - type: web
     name: arena-flags

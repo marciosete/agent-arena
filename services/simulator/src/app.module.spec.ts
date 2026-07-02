@@ -29,4 +29,37 @@ describe('AppModule (e2e)', () => {
     const response = await request(app.getHttpServer()).get('/state').expect(200);
     expect(SimStateSchema.parse(response.body).champion).toBeNull();
   });
+
+  it('allows reset when no admin key is configured', async () => {
+    delete process.env.SIMULATOR_ADMIN_KEY;
+    const response = await request(app.getHttpServer()).post('/reset');
+    expect(response.status).toBe(201);
+  });
+
+  describe('with SIMULATOR_ADMIN_KEY configured', () => {
+    beforeAll(() => {
+      process.env.SIMULATOR_ADMIN_KEY = 'test-sim-key';
+    });
+
+    afterAll(() => {
+      delete process.env.SIMULATOR_ADMIN_KEY;
+    });
+
+    it('keeps /state public', async () => {
+      const response = await request(app.getHttpServer()).get('/state');
+      expect(response.status).toBe(200);
+    });
+
+    it('rejects reset without the admin key', async () => {
+      const response = await request(app.getHttpServer()).post('/reset');
+      expect(response.status).toBe(401);
+    });
+
+    it('accepts reset with the admin key', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/reset')
+        .set('x-admin-key', 'test-sim-key');
+      expect(response.status).toBe(201);
+    });
+  });
 });

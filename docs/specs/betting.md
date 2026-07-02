@@ -37,10 +37,19 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
 4. **`GET /bets?accountId=&status=`** — filterable listing (validate query with `BetQuerySchema`).
 5. **`POST /settle`** — validated with `SettleRequestSchema`; called by the simulator. Winners →
    `won` + credit `potentialReturn` + ledger entry; losers → `lost`. Transactional and
-   **idempotent per fixture** (second call = no-op).
+   **idempotent per fixture** (second call = no-op). **Guard this endpoint** with an
+   x-admin-key check (`BETTING_ADMIN_KEY`, same pattern as flags/simulator) — settlement moves
+   money and must not be publicly callable. The simulator sends the header when it settles.
 6. **`GET /exposure`** — `ExposureReportSchema`: per market, total staked, bet count, and
    **max liability** (worst-case payout across selections minus stakes held).
 7. **`GET /accounts/:id/ledger`** — the audit trail (shape is yours; document it in a README).
+
+## Security (public repo + public API — see CLAUDE.md)
+
+- Enforce every money rule **server-side**: stake ≤ balance, stake > 0, no NaN/overflow.
+  Never trust the client's numbers. Wallet debit + bet + ledger in one `$transaction`.
+- Idempotency is a **DB unique constraint** on the key, not an `if`-check that races.
+- `/settle` is guarded (above). Error bodies never expose connection strings or stack traces.
 
 ## Enterprise bar
 
