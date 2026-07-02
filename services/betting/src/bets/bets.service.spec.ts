@@ -62,7 +62,12 @@ function betRow(overrides: Partial<Record<string, unknown>> = {}) {
 
 function makeMocks() {
   const tx = {
-    account: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
+    account: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+    },
     bet: { create: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
     ledgerEntry: { create: vi.fn() },
   };
@@ -240,9 +245,9 @@ describe('BetsService.placeBet', () => {
   });
 
   it('rejects a sub-cent stake with 400 BEFORE any pricing call or debit', async () => {
-    await expect(service.placeBet(ACCOUNT_ID, placeRequest({ stake: 0.004 }))).rejects.toBeInstanceOf(
-      BadRequestException
-    );
+    await expect(
+      service.placeBet(ACCOUNT_ID, placeRequest({ stake: 0.004 }))
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(mocks.pricing.fetchMarket).not.toHaveBeenCalled();
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
   });

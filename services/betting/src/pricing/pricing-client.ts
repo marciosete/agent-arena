@@ -14,7 +14,11 @@ const REQUEST_TIMEOUT_MS = 10_000;
  * (which would 404 as a `//markets/...` route).
  */
 function pricingBaseUrl(): string {
-  return (process.env.PRICING_URL || BASE_URLS.pricing).replace(/\/+$/, '');
+  let baseUrl: string = process.env.PRICING_URL || BASE_URLS.pricing;
+  while (baseUrl.endsWith('/')) {
+    baseUrl = baseUrl.slice(0, -1);
+  }
+  return baseUrl;
 }
 
 /**

@@ -3,16 +3,6 @@ import { ExposureReportSchema, type ExposureReport } from '@arena/contracts';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildExposureMarkets, type ExposureAggregate } from './exposure.domain';
 
-/** The groupBy row shape Prisma returns for the exposure aggregation. */
-interface BetGroup {
-  marketId: string;
-  marketName: string;
-  selectionId: string;
-  status: string;
-  _count: { _all: number };
-  _sum: { stake: number | null; potentialReturn: number | null };
-}
-
 /**
  * The trading desk's liability board: staked totals and worst-case payout per
  * market. The trader app polls this continuously, so the summing happens in
@@ -24,7 +14,7 @@ export class ExposureService {
   constructor(private readonly prisma: PrismaService) {}
 
   async report(): Promise<ExposureReport> {
-    const groups: BetGroup[] = await this.prisma.bet.groupBy({
+    const groups = await this.prisma.bet.groupBy({
       by: ['marketId', 'marketName', 'selectionId', 'status'],
       _count: { _all: true },
       _sum: { stake: true, potentialReturn: true },

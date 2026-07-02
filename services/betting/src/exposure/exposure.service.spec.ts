@@ -30,7 +30,11 @@ describe('ExposureService.report', () => {
   it('returns a contract-valid, timestamped report over the aggregated bets', async () => {
     prisma.bet.groupBy.mockResolvedValue([
       betGroup(),
-      betGroup({ selectionId: 'sel-chi', _count: { _all: 1 }, _sum: { stake: 50, potentialReturn: 120 } }),
+      betGroup({
+        selectionId: 'sel-chi',
+        _count: { _all: 1 },
+        _sum: { stake: 50, potentialReturn: 120 },
+      }),
     ]);
 
     const report = await service.report();
@@ -61,7 +65,11 @@ describe('ExposureService.report', () => {
 
   it('treats null aggregate sums (empty groups) as zero', async () => {
     prisma.bet.groupBy.mockResolvedValue([
-      betGroup({ status: 'lost', _count: { _all: 3 }, _sum: { stake: null, potentialReturn: null } }),
+      betGroup({
+        status: 'lost',
+        _count: { _all: 3 },
+        _sum: { stake: null, potentialReturn: null },
+      }),
     ]);
 
     const report = await service.report();
