@@ -12,14 +12,17 @@ the moment their flag flips.
 
 ## Topology
 
-| What                               | Where                       | How it deploys                                                                                                            |
-| ---------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| pricing, betting, simulator, flags | **Render** (4 web services) | `render.yaml` blueprint, `autoDeployTrigger: checksPass` — waits for green GitHub checks; migrations run on boot          |
-| punter-web, trader-ops             | **Vercel** (2 projects)     | Vercel git auto-deploy **disabled**; the CI `deploy` job (needs quality + secrets gates, main only) is the only prod path |
-| Postgres (betting, pricing, flags) | **Neon**                    | already provisioned                                                                                                       |
+| What                               | Where                       | How it deploys                                                                                                                                                        |
+| ---------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pricing, betting, simulator, flags | **Render** (4 web services) | Render auto-deploy **off**; the CI `deploy-backends` job triggers each deploy via the Render API after all gates pass, then waits for `live` — migrations run on boot |
+| punter-web, trader-ops             | **Vercel** (2 projects)     | Vercel git auto-deploy **disabled**; the CI `deploy-frontends` job (needs all gates, main only) is the only prod path                                                 |
+| Postgres (betting, pricing, flags) | **Neon**                    | already provisioned                                                                                                                                                   |
 
 **No green, no deploy.** A failing test, a lint warning, a leaked secret, a coverage miss —
-anything that fails the gates keeps production untouched, frontends and backends alike.
+anything that fails the gates keeps production untouched, frontends and backends alike. Both
+deploy jobs fan in on the same seven parallel gate lanes (lint/format, typecheck,
+architecture+duplication, test+build, yaml, SonarQube, secret scan); CI is the single control
+plane for all six services.
 
 **Domains** (`hackathon.beer`, DNS on Vercel nameservers): `www` → punter-web (apex 308s to
 www) · `trader` → trader-ops · `pricing` / `betting` / `simulator` / `flags` → CNAMEs to the

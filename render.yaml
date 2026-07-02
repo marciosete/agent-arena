@@ -1,8 +1,10 @@
 # Render Blueprint — the four NestJS services.
-# Apply once (Render dashboard → New → Blueprint → this repo); after that,
-# every push to main auto-deploys. The two Vite apps deploy on Vercel.
-# Database URLs are secrets: set them in the dashboard when prompted
-# (sync: false), using the values from each service's local .env.
+# Apply once (Render dashboard → New → Blueprint → this repo).
+# autoDeployTrigger is "off": Render never deploys on its own. The gated CI
+# deploy-backends job (.github/workflows/ci.yml) is the SOLE deploy trigger,
+# via the Render API after every gate passes. The two Vite apps deploy the same
+# way on Vercel. Database URLs are secrets: set them in the dashboard when
+# prompted (sync: false), using the values from each service's local .env.
 services:
   - type: web
     name: arena-pricing
@@ -11,7 +13,7 @@ services:
     buildCommand: npm install -g npm@11 && npm ci && npm run build -w services/pricing
     startCommand: npm run start:prod -w services/pricing
     healthCheckPath: /health
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: 'off'
     envVars:
       - key: NODE_VERSION
         value: '22'
@@ -25,7 +27,7 @@ services:
     buildCommand: npm install -g npm@11 && npm ci && npm run build -w services/betting
     startCommand: npm run start:prod -w services/betting
     healthCheckPath: /health
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: 'off'
     envVars:
       - key: NODE_VERSION
         value: '22'
@@ -39,7 +41,7 @@ services:
     buildCommand: npm install -g npm@11 && npm ci && npm run build -w services/simulator
     startCommand: npm run start:prod -w services/simulator
     healthCheckPath: /health
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: 'off'
     envVars:
       - key: NODE_VERSION
         value: '22'
@@ -53,7 +55,7 @@ services:
     buildCommand: npm install -g npm@11 && npm ci && npm run build -w services/flags
     startCommand: npm run start:prod -w services/flags
     healthCheckPath: /health
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: 'off'
     envVars:
       - key: NODE_VERSION
         value: '22'
