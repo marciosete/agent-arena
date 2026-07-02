@@ -65,9 +65,11 @@ describe('ExposureBoard', () => {
     expect(screen.getByText('12,000').className).toContain('heat-red');
     expect(screen.getByText('800').className).toContain('heat-low');
 
-    // Top-line tiles: staked 5,300 / liability 12,800 (red) / 1 open market.
+    // Top-line tiles are plain aggregates (heat lives on the per-market column,
+    // not the book-wide sum): staked 5,300 / liability 12,800 / 1 open market.
     expect(screen.getByText('5,300')).toBeTruthy();
-    expect(screen.getByText('12,800').className).toContain('heat-red');
+    const liabilityTile = screen.getByText('12,800');
+    expect(liabilityTile.className).toBe('tile-value');
     expect(screen.getByText('1')).toBeTruthy();
   });
 
@@ -119,7 +121,7 @@ describe('ExposureBoard', () => {
 
     renderWithAuth(<ExposureBoard />);
 
-    // With peak liability 0 the meter fill collapses to 0% and the total reads low heat.
+    // With peak liability 0 the meter fill collapses to 0% and reads low heat.
     await screen.findByText('Group A Winner');
     const fill = document.querySelector('.bar-fill') as HTMLElement;
     expect(fill.style.width).toBe('0%');

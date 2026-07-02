@@ -58,6 +58,27 @@ describe('usePoll', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  it('discards an older slow poll once a newer poll has resolved', async () => {
+    const resolvers: Array<(value: ApiResult<number>) => void> = [];
+    const fetcher = vi.fn(
+      () => new Promise<ApiResult<number>>((resolve) => resolvers.push(resolve))
+    );
+    const { result } = renderHook(() => usePoll(fetcher, 60_000));
+    // The mount poll is now in flight (resolvers[0]) but unresolved.
+    await waitFor(() => expect(resolvers).toHaveLength(1));
+
+    await act(async () => {
+      // Issue a newer poll (resolvers[1]); resolve it first, then the older one.
+      const newer = result.current.refresh();
+      resolvers[1](ok(2));
+      await newer;
+      resolvers[0](ok(1));
+    });
+
+    // The stale mount poll must not overwrite the newer result.
+    expect(result.current.data).toBe(2);
+  });
+
   it('stops polling after unmount', async () => {
     vi.useFakeTimers();
     const fetcher = vi.fn().mockResolvedValue(ok(1));

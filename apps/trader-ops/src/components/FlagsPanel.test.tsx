@@ -162,6 +162,28 @@ describe('FlagsPanel', () => {
     await waitFor(() => expect(toggle.getAttribute('aria-checked')).toBe('false'));
   });
 
+  it('drops a stuck override when the flag vanishes from the poll', async () => {
+    localStorage.setItem(STORAGE_KEY, ADMIN_KEY);
+    let present = true;
+    const fetchSpy: FetchStub = vi.fn(async (_url: string, init?: RequestInit) => {
+      if ((init?.method ?? 'GET') === 'PUT') {
+        // After the flip the flags service stops listing the key entirely.
+        present = false;
+        return jsonResponse({ ...markets, enabled: true });
+      }
+      return jsonResponse(present ? [markets] : []);
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    renderWithAuth(<FlagsPanel />);
+
+    await releaseFlag(MARKETS_KEY);
+
+    // An override that can never reconcile must be pruned, not held forever, so
+    // the row falls back to server truth (here: gone) instead of sticking on the
+    // operator's optimistic value.
+    await waitFor(() => expect(screen.queryByText(MARKETS_KEY)).toBeNull());
+  });
+
   it('drops the optimistic override once the poll reports the released state', async () => {
     localStorage.setItem(STORAGE_KEY, ADMIN_KEY);
     let released = false;

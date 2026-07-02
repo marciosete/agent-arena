@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, formatMoney, formatPrice, formatSigned } from './format';
+import { formatBalance, formatClock, formatMoney, formatPrice, formatSigned } from './format';
 
 describe('formatMoney', () => {
   it('rounds and separates thousands', () => {
@@ -16,6 +16,16 @@ describe('formatSigned', () => {
   it('keeps the minus on losses and shows zero flat', () => {
     expect(formatSigned(-450)).toBe('-450');
     expect(formatSigned(0)).toBe('0');
+  });
+});
+
+describe('formatBalance', () => {
+  it('keeps cents exactly instead of rounding a fractional balance', () => {
+    expect(formatBalance(10_000.75)).toBe('10,000.75');
+  });
+
+  it('shows no decimals for a whole balance', () => {
+    expect(formatBalance(10_000)).toBe('10,000');
   });
 });
 

@@ -12,9 +12,18 @@ import './FinaleControls.css';
 /** ms pause the sim leaves between simulated fixtures so the punter UIs can animate. */
 const RUN_INTERVAL_MS = 2000;
 
-const REJECTED_401 = 'command rejected (401): the simulator refused your session — sign in again';
+// The simulator admin-guard returns 401 for a wrong/missing x-admin-key (not 403),
+// and reads already prove the Bearer is valid — so a 401 on a command is almost
+// always the admin key. Lead with re-arming it; keep the session hint too.
+const REJECTED_401 =
+  'command rejected (401): re-arm the simulator admin key — or sign in again if your session expired';
 const REJECTED_403 = 'command rejected (403): admin key refused — re-arm the simulator admin key';
 const UNREACHABLE = 'simulator unreachable or errored';
+
+// /run is fire-and-forget: it returns the pre-run state immediately and keeps
+// simulating in the background, so its bracket counts would read as "nothing
+// happened". Report that the run started instead — the feed shows the results.
+const RUN_STARTED = 'run started — fast-forwarding to the final; watch the settlement feed';
 
 const PLAY_NEXT_URL = `${SERVICE_URLS.simulator}/play-next`;
 const RUN_URL = `${SERVICE_URLS.simulator}/run`;
@@ -68,14 +77,18 @@ export function FinaleControls() {
   const [result, setResult] = useState<CommandResult | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
 
-  const send = async (url: string, body?: unknown): Promise<void> => {
+  const send = async (
+    url: string,
+    body?: unknown,
+    describe: (state: SimState) => string = successMessage
+  ): Promise<void> => {
     setPending(true);
     const headers: Record<string, string> = key ? { 'x-admin-key': key } : {};
     const outcome = await fetchJson(api, url, SimStateSchema, jsonInit('POST', body, headers));
     setPending(false);
     if (outcome.ok) {
       setLastRunAt(new Date().toISOString());
-      setResult({ ok: true, message: successMessage(outcome.data) });
+      setResult({ ok: true, message: describe(outcome.data) });
     } else {
       setResult({ ok: false, message: failureMessage(outcome.status) });
     }
@@ -110,7 +123,7 @@ export function FinaleControls() {
           type="button"
           className="btn"
           disabled={pending}
-          onClick={() => void send(RUN_URL, { intervalMs: RUN_INTERVAL_MS })}
+          onClick={() => void send(RUN_URL, { intervalMs: RUN_INTERVAL_MS }, () => RUN_STARTED)}
         >
           run to final
         </button>

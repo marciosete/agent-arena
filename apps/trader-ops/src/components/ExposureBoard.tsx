@@ -13,7 +13,7 @@ import {
   heatLevel,
   sortByLiability,
 } from '../lib/exposure';
-import type { ExposureTotals, HeatLevel } from '../lib/exposure';
+import type { ExposureTotals } from '../lib/exposure';
 
 const EXPOSURE_URL = `${SERVICE_URLS.betting}/exposure`;
 const POLL_MS = 3_000;
@@ -81,23 +81,20 @@ function ExposureBody({ report }: Readonly<{ report: ExposureReport | null }>) {
 }
 
 function TotalsTiles({ totals }: Readonly<{ totals: ExposureTotals }>) {
+  // Plain values — heat lives on the per-market liability column. Banding the
+  // book-wide SUM against single-market thresholds would glow red during normal
+  // trading (many calm markets still sum past a per-market red), a false alarm.
   const tiles = [
-    { label: 'total staked', value: totals.totalStaked, heat: null as HeatLevel | null },
-    {
-      label: 'worst-case liability',
-      value: totals.maxLiability,
-      heat: heatLevel(totals.maxLiability, THRESHOLDS),
-    },
-    { label: 'open markets', value: totals.openCount, heat: null as HeatLevel | null },
+    { label: 'total staked', value: totals.totalStaked },
+    { label: 'worst-case liability', value: totals.maxLiability },
+    { label: 'open markets', value: totals.openCount },
   ];
   return (
     <div className="tiles">
       {tiles.map((tile) => (
         <div className="tile" key={tile.label}>
           <span className="tile-label">{tile.label}</span>
-          <span className={tile.heat ? `tile-value heat-${tile.heat}` : 'tile-value'}>
-            {formatMoney(tile.value)}
-          </span>
+          <span className="tile-value">{formatMoney(tile.value)}</span>
         </div>
       ))}
     </div>

@@ -15,7 +15,7 @@ function WalletChip() {
   }
   return (
     <div className="wallet">
-      <span className="wallet-balance">🍩 {formatMoney(session.account.balance)}</span>
+      <span className="wallet-balance">🍩 {formatBalance(session.account.balance)}</span>
       <span className="wallet-name">{session.account.name}</span>
       <button type="button" className="wallet-logout" onClick={logout}>
         Log out

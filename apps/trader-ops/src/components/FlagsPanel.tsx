@@ -15,7 +15,11 @@ const ADMIN_HEADER = 'x-admin-key';
 const NUM = 'num';
 const POLL_INTERVAL_MS = 5_000;
 
-const REJECT_401 = 'release rejected (401): the service refused your session — sign in again';
+// The flags write-guard returns 401 for a wrong/missing x-admin-key (not 403), and
+// reads already prove the Bearer is valid — so a 401 on a flip is almost always the
+// admin key. Lead with re-arming it; keep the session hint for the rarer case.
+const REJECT_401 =
+  'release rejected (401): re-arm the flags admin key — or sign in again if your session expired';
 const REJECT_403 = 'release rejected (403): admin key refused — re-arm the flags admin key';
 const RELEASE_FAILED = 'release failed — flags service unreachable or errored';
 
@@ -50,7 +54,10 @@ function reconcileOverrides(
   let dropped = false;
   for (const override of Object.values(overrides)) {
     const current = live.find((flag) => flag.key === override.key);
-    if (current && current.enabled === override.enabled) {
+    // Drop the override once the server confirms the same state — or if the key
+    // has vanished from the poll entirely (an override we can never reconcile
+    // must not linger and mask real server state forever).
+    if (!current || current.enabled === override.enabled) {
       dropped = true;
     } else {
       next[override.key] = override;

@@ -53,17 +53,19 @@ describe('FinaleControls', () => {
     vi.restoreAllMocks();
   });
 
-  it('play-next posts with the Bearer JWT and x-admin-key and reports the bracket position', async () => {
+  it('play-next posts with the Bearer JWT and x-admin-key and reports the bracket position, noting a crowned champion', async () => {
     localStorage.setItem(STORAGE_KEY, ADMIN_KEY);
     const fetchMock = stubFetch(
-      jsonResponse(simState({ playedFixtureIds: ['f1', 'f2'], remainingFixtureIds: ['f3'] }))
+      jsonResponse(
+        simState({ playedFixtureIds: ['f1', 'f2', 'f3'], remainingFixtureIds: [], champion: 'BRA' })
+      )
     );
     renderWithAuth(<FinaleControls />);
 
     fireEvent.click(await screen.findByRole(ROLE_BUTTON, { name: PLAY_NEXT }));
 
     const status = await screen.findByRole(ROLE_STATUS);
-    expect(status.textContent).toBe('bracket: 2 played · 1 remaining');
+    expect(status.textContent).toBe('bracket: 3 played · 0 remaining · champion crowned');
 
     const [url] = fetchMock.mock.calls[0];
     expect(url).toContain(PLAY_NEXT_PATH);
@@ -72,17 +74,20 @@ describe('FinaleControls', () => {
     expect(headers.get(KEY_HEADER)).toBe(ADMIN_KEY);
   });
 
-  it('run-to-final posts an intervalMs body', async () => {
+  it('run-to-final posts an intervalMs body and reports the run started (not the pre-run counts)', async () => {
     localStorage.setItem(STORAGE_KEY, ADMIN_KEY);
+    // /run returns the pre-run state immediately; the console must not read those
+    // stale zero counts as "done" — it announces the run started instead.
     const fetchMock = stubFetch(
-      jsonResponse(simState({ champion: 'BRA', playedFixtureIds: ['f1'], remainingFixtureIds: [] }))
+      jsonResponse(simState({ playedFixtureIds: [], remainingFixtureIds: ['f1', 'f2', 'f3'] }))
     );
     renderWithAuth(<FinaleControls />);
 
     fireEvent.click(await screen.findByRole(ROLE_BUTTON, { name: RUN_TO_FINAL }));
 
     const status = await screen.findByRole(ROLE_STATUS);
-    expect(status.textContent).toContain('champion crowned');
+    expect(status.textContent).toContain('run started');
+    expect(status.textContent).not.toContain('0 played');
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toContain('/run');
