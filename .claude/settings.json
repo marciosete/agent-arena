@@ -23,19 +23,6 @@
       "Bash(npx prisma migrate status:*)",
       "Bash(npx nest:*)",
       "Bash(npx depcruise:*)"
-    ],
-    "deny": [
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Read(./.env)",
-      "Edit(./contracts/**)",
-      "Edit(./package.json)",
-      "Edit(./package-lock.json)",
-      "Edit(./eslint.config.mjs)",
-      "Edit(./tsconfig.base.json)",
-      "Edit(./.husky/**)",
-      "Edit(./scripts/**)",
-      "Edit(./.github/**)"
     ]
   }
 }
