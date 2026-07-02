@@ -9,6 +9,12 @@ The face of the platform. A dark, premium sportsbook where the audience browses 
 markets, places bets, and watches the **Road to the Final** — a circular knockout bracket
 radiating from a glowing golden trophy. This is the screen everyone photographs.
 
+> **Build/reveal order (not requirement order): bracket → markets → bet slip → my bets →
+> confetti.** The bracket ships first because it renders from `@arena/contracts` + the
+> simulator's `/state` alone (no other service), so it's the fastest big visual. Each feature
+> is gated behind its flag; post a one-line progress update as you finish each. See
+> `docs/mental-map.md`.
+
 ## Requirements
 
 1. **Account bootstrap.** On first visit, create an account via `POST :4002/accounts` (prompt

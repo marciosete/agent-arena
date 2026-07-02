@@ -9,6 +9,11 @@ The back office. While punters see glamour, traders see risk: where is the book 
 market could hurt us, who is winning too much. Dense, fast, dark — a Bloomberg terminal for a
 World Cup book.
 
+> **Build order: flags release panel → exposure board → leaderboard → market monitor +
+> settlement feed.** The flags panel ships first because it's the release console the host
+> drives the whole show from. Post a one-line progress update as you finish each. See
+> `docs/mental-map.md`.
+
 ## Requirements
 
 1. **Exposure board.** Poll `GET :4002/exposure` (~3s). Table: market, status, total staked,
