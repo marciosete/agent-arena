@@ -5,6 +5,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { HealthResponseSchema } from '@arena/contracts';
 import { AppModule } from './app.module';
+import { MarketsRepository } from './markets/markets.repository';
+import { InMemoryMarketsRepository } from './markets/testing/in-memory-markets.repository';
 
 // A throwaway non-@Public route, mounted alongside the real AppModule, so we can
 // assert the globally-registered JwtAuthGuard actually protects normal routes.
@@ -23,7 +25,11 @@ describe('AppModule (e2e)', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
       controllers: [ProbeController],
-    }).compile();
+    })
+      // Keep the module graph real but swap Postgres out from under it.
+      .overrideProvider(MarketsRepository)
+      .useValue(new InMemoryMarketsRepository())
+      .compile();
     app = moduleRef.createNestApplication();
     await app.init();
   });

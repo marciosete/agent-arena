@@ -16,3 +16,52 @@ datasource db {
   provider = "postgresql"
   url      = env("PRICING_DATABASE_URL")
 }
+
+enum MarketType {
+  MATCH_WINNER
+  OUTRIGHT
+}
+
+enum MarketStatus {
+  open
+  suspended
+  settled
+}
+
+// A published market. MATCH_WINNER markets have id == fixtureId; the single
+// OUTRIGHT market has id 'outright' and fixtureId null (the contracts §3 join).
+model Market {
+  id         String       @id
+  type       MarketType
+  fixtureId  String?      @unique
+  name       String
+  status     MarketStatus
+  updatedAt  DateTime     @updatedAt
+  selections Selection[]
+}
+
+// Selection ids are deterministic ('<marketId>:<teamId>') so reprices and
+// restarts upsert cleanly; `name` MUST equal the contracts Team.name — it is
+// how the simulator resolves winning selections.
+model Selection {
+  id          String @id
+  marketId    String
+  name        String
+  price       Float
+  probability Float
+  market      Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([marketId, name])
+}
+
+// Every applied reprice is a recorded event; replayed over the FIXTURES seed
+// at boot to rebuild the live bracket, so state survives restarts.
+model Settlement {
+  fixtureId          String   @id
+  winnerTeamId       String
+  homeScore          Int
+  awayScore          Int
+  decidedOnPenalties Boolean
+  settledAt          DateTime
+  appliedAt          DateTime @default(now())
+}

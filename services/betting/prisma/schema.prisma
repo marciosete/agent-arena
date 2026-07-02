@@ -43,3 +43,47 @@ model Otp {
 
   @@index([email])
 }
+
+enum BetStatus {
+  pending
+  won
+  lost
+  void
+}
+
+// A placed bet with its price locked at placement time. The unique constraint
+// on idempotencyKey is the idempotency mechanism — the database is the referee,
+// not application code. marketName is denormalised from pricing at placement so
+// the exposure report never needs a second cross-service call.
+model Bet {
+  id              String    @id @default(uuid())
+  accountId       String
+  marketId        String
+  marketName      String
+  selectionId     String
+  stake           Float
+  price           Float
+  potentialReturn Float
+  status          BetStatus @default(pending)
+  placedAt        DateTime  @default(now())
+  settledAt       DateTime?
+  idempotencyKey  String    @unique
+
+  @@index([accountId])
+  @@index([marketId, status])
+}
+
+// Append-only audit trail of every wallet movement (bet debits, win credits).
+// Rows are only ever inserted — never updated or deleted — so the ledger always
+// reconciles: Σ delta per account == balance - OPENING_BALANCE.
+model LedgerEntry {
+  id           String   @id @default(uuid())
+  accountId    String
+  delta        Float
+  balanceAfter Float
+  reason       String
+  refBetId     String?
+  createdAt    DateTime @default(now())
+
+  @@index([accountId])
+}

@@ -8,7 +8,13 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json-summary', 'lcov'],
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/**/__tests__/**', 'src/index.ts'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/__tests__/**',
+        'src/index.ts',
+        // type-only module: no executable statements for v8 to count
+        'src/strategies/types.ts',
+      ],
     },
   },
 });
