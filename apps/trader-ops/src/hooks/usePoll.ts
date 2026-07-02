@@ -25,10 +25,15 @@ export function usePoll<T>(fetcher: () => Promise<ApiResult<T>>, intervalMs: num
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const alive = useRef(true);
+  // Monotonic request id. Every poll takes a ticket up front; only the response
+  // from the most-recently-issued request is applied, so a slow earlier poll
+  // resolving after a newer one can't repaint stale data over fresh data.
+  const latest = useRef(0);
 
   const refresh = useCallback(async () => {
+    const ticket = ++latest.current;
     const result = await fetcher();
-    if (!alive.current) {
+    if (!alive.current || ticket !== latest.current) {
       return;
     }
     if (result.ok) {

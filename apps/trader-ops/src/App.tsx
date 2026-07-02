@@ -5,7 +5,7 @@ import { FlagsPanel } from './components/FlagsPanel';
 import { Leaderboard } from './components/Leaderboard';
 import { MarketMonitor } from './components/MarketMonitor';
 import { SettlementFeed } from './components/SettlementFeed';
-import { formatMoney } from './lib/format';
+import { formatBalance } from './lib/format';
 import './App.css';
 
 function WalletChip() {

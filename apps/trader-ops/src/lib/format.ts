@@ -3,6 +3,15 @@ export function formatMoney(value: number): string {
   return Math.round(value).toLocaleString('en-US');
 }
 
+/**
+ * Exact wallet balance — thousands-separated, cents shown only when non-zero.
+ * Balances can be fractional (decimal-odds payouts), so this never rounds the
+ * way {@link formatMoney} does.
+ */
+export function formatBalance(value: number): string {
+  return value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
 /** Signed P&L for the leaderboard: +1,200 / -450 / 0. */
 export function formatSigned(value: number): string {
   const rounded = Math.round(value);
