@@ -1,15 +1,34 @@
 ---
-description: Strict LOC count (functional + test only) with force multiplier vs 120 LOC/eng/day
+description: Strict functional-LOC count (product + test aggregated) with force multiplier vs 120 LOC/eng/day
 argument-hint: '[engineers] [days]'
 allowed-tools: Bash(bash .claude/loc.sh:*)
 ---
 
-Strict lines-of-code accounting for Agent Arena. Counts ONLY functional product
-code + test code (TypeScript/TSX); excludes generated/third-party dirs, config
-files, `scripts/*.sh` tooling, docs, and CSS/HTML UI assets. Shows the counted
-set two ways — **by commit day** (net LOC from git history, each day with its own
-multiplier) and **by workspace** (current tree) — then computes the overall force
-multiplier against a baseline of 120 LOC / engineer / coding day.
+Strict lines-of-code accounting for Agent Arena. Counts functional code
+(TypeScript/TSX) — product **and** test code aggregated into a single figure;
+test files are matched by `.test.`, `.spec.` (NestJS co-located specs), or a
+`__tests__/` path. Excludes generated/third-party dirs, config files
+(`*.config.*`), `scripts/*.sh` tooling, docs, and CSS/HTML UI assets. Shows the
+counted set two ways — **by commit day** (net functional LOC from git history,
+each day with its own multiplier) and **by workspace** (current tree) — then
+computes the overall force multiplier against a baseline of 120 LOC / engineer /
+coding day.
+
+### Scope (rules the script enforces — also printed in the report)
+
+- **Counted (multiplier):** `.ts` and `.tsx` only, product + test aggregated,
+  minus `*.config.ts` (vite/vitest/etc.).
+- **Test detection:** a file is test code if its path contains `.test.`,
+  `.spec.`, or a `__tests__/` segment; everything else `.ts/.tsx` is product.
+- **Reported but not counted:** `.css` and `.html` (the UI-assets line).
+- **Excluded extensions:** every other extension — `.json`, `.md`, `.yml`,
+  `.yaml`, `.sh`, `.mjs`, `.cjs`, `.prisma`, `.sql`, `.toml`, `.properties`,
+  `.example`, husky hooks, etc.
+- **Excluded folders:** `node_modules/`, `dist/`, `coverage/`,
+  `services/*/generated/`, `.scannerwork/`, `.vercel/`, `.husky/_/`, and
+  anything else `.gitignore`d (via `git ls-files --exclude-standard`).
+- `docs/` and `scripts/` contain no `.ts/.tsx`, so they drop out by extension,
+  not by a folder rule.
 
 Report:
 
