@@ -31,7 +31,10 @@ contracts `FIXTURES` (idempotent upserts — restarts must not duplicate markets
 1. **Probability model.** For a fixture between two known teams, derive win probabilities from
    the Elo ratings in `TEAMS` (logistic expectation). Knockout football always produces a
    winner, so `MATCH_WINNER` markets have exactly two selections — extra time and penalties
-   are baked into the probability.
+   are baked into the probability. Set the market's `fixtureId` to the fixture id and **name each
+   selection with its team's `name` from `TEAMS`** — that is how the punter app joins a market to
+   the bracket (`Market.fixtureId`) and maps a selection to a team (by name; selections carry no
+   `teamId`).
 2. **Margin.** Convert fair probabilities to decimal prices with the margin applied
    proportionally so the overround equals `TARGET_OVERROUND` (1.05). Never below 1.01. Keep
    `probability` (the fair value) on each selection.

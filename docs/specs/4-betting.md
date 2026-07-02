@@ -17,7 +17,8 @@ here, and it moves **in the database**.
 
 Define Prisma models in `prisma/schema.prisma` — suggested shape, refine as you see fit:
 
-- **Account** — id, name, balance, isBot, createdAt
+- **Account** — id, **name `@unique`**, balance, isBot, createdAt (name is the punter's identity —
+  the unique constraint is what makes `POST /accounts` a safe find-or-create)
 - **Bet** — id, accountId, marketId, selectionId, stake, price, potentialReturn, status,
   placedAt, settledAt, **idempotencyKey `@unique`** (the DB enforces idempotency, not an if-statement)
 - **LedgerEntry** — id, accountId, delta, balanceAfter, reason, refBetId?, createdAt —
@@ -28,8 +29,12 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
 
 ## Requirements
 
-1. **`POST /accounts`** — validated with `CreateAccountRequestSchema`. Opens with
-   `OPENING_BALANCE` (10,000) and writes the opening ledger entry in the same transaction.
+1. **`POST /accounts`** — validated with `CreateAccountRequestSchema`. **Find-or-create by name**
+   (name is `@unique`): a **known name returns its existing account** (this is how a punter signs
+   back in and recovers their wallet + bets — no passwords); a **new name opens** an account with
+   `OPENING_BALANCE` (10,000) and writes the opening ledger entry in the same transaction. Let the
+   DB's unique constraint be the referee against a race (unique + catch, or upsert) — never two
+   wallets for one name.
 2. **`GET /accounts` / `GET /accounts/:id`** — list and fetch (404 unknown).
 3. **`POST /bets`** — validated with `PlaceBetRequestSchema`. Rules:
    - account exists; stake ≤ balance; market exists and is `open` (check pricing via
@@ -70,9 +75,10 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
 Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus a named
 passing test for each — paste the test names:
 
-- opens at 10,000 · rejects stake > balance · 409 when price moved > 5% · **replayed
-  idempotency key returns the original bet, no double debit** · wallet debit + bet + ledger in
-  one `$transaction` · settle-twice is a no-op · `/settle` rejects a missing/wrong `x-admin-key`
+- a new name opens at 10,000 · **a repeated name returns the same account (find-or-create), no
+  second wallet** · rejects stake > balance · 409 when price moved > 5% · **replayed idempotency
+  key returns the original bet, no double debit** · wallet debit + bet + ledger in one
+  `$transaction` · settle-twice is a no-op · `/settle` rejects a missing/wrong `x-admin-key`
 - the exposure report's max-liability maths
 - Prisma migration applied (`npx prisma migrate status` shown)
 

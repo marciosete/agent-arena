@@ -58,7 +58,7 @@ export type RepriceRequest = z.infer<typeof RepriceRequestSchema>;
 
 // ── Betting service (:4002) ────────────────────────────────────────────
 // GET  /health                → HealthResponse
-// POST /accounts              → Account         (body: CreateAccountRequest)
+// POST /accounts              → Account         (body: CreateAccountRequest; find-or-create by unique name)
 // GET  /accounts/:id          → Account
 // GET  /accounts              → Account[]
 // POST /bets                  → Bet             (body: PlaceBetRequest)
