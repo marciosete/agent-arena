@@ -1,73 +1,584 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   Road to the Final — a near-black arena with a molten-gold heart.
+   Dim silver constellation paths ignite in gold as results land.
+   Hand-rolled CSS only: no animation, chart, or layout libraries.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --ink: #05050a;
+  --panel: #0d0d16;
+  --panel-edge: #262433;
+  --text: #f2f0e9;
+  --muted: #98939e;
+  --faint: #5b5866;
+  --gold: #d4af37;
+  --gold-bright: #f6d97b;
+  --gold-deep: #8a6d1d;
+  --up: #34d399;
+  --down: #f87171;
+  --edge-idle: #2c2b36;
+  --edge-dead: #1b1a23;
+  --font-display: 'Avenir Next Condensed', 'Arial Narrow', 'Helvetica Neue', system-ui, sans-serif;
+}
+
 .app {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: radial-gradient(
+    ellipse 120% 90% at 50% 40%,
+    #0c0a14 0%,
+    var(--ink) 62%,
+    #030307 100%
+  );
 }
 
+/* ── Sticky top bar ─────────────────────────────────────────────────────── */
+
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.9rem 1.5rem;
-  border-bottom: 1px solid #ffffff14;
+  padding: 0.65rem 1.4rem;
+  background: rgba(5, 5, 10, 0.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #ffffff12;
 }
 
 .brand {
-  font-size: 1.4rem;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   text-decoration: none;
 }
 
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
+.brand-mark {
+  font-size: 1.25rem;
+  filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.55));
 }
 
-.topbar .nav {
-  padding: 0;
-  gap: 1.5rem;
+.brand-word {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  background: linear-gradient(
+    180deg,
+    var(--gold-bright) 0%,
+    var(--gold) 55%,
+    var(--gold-deep) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1.8rem;
+}
+
+.nav-link {
+  color: var(--muted);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: none;
+  padding: 0 0 0.2rem;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.nav-link:hover {
+  color: var(--gold-bright);
+  border-bottom-color: var(--gold);
+}
+
+/* ── Wallet chip + profile menu ─────────────────────────────────────────── */
+
+.wallet-root {
+  position: relative;
 }
 
 .wallet {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.3rem 0.3rem 0.3rem 0.85rem;
-  background: #16161d;
-  border: 1px solid #2c2c38;
+  gap: 0.55rem;
+  padding: 0.38rem 0.9rem;
+  background: #14131e;
+  border: 1px solid #2c2a3a;
   border-radius: 999px;
   font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.wallet:hover {
+  border-color: var(--gold-deep);
+  background: #191826;
 }
 
 .wallet-balance {
-  color: #e7c766;
+  color: var(--gold-bright);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.wallet-name {
-  color: #d5d5df;
+.wallet-dot {
+  color: var(--faint);
 }
 
-.wallet-logout {
-  background: #2c2c38;
-  color: #e8e8f0;
-  border: none;
-  border-radius: 999px;
-  padding: 0.35rem 0.85rem;
+.wallet-name {
+  color: #d5d2dc;
+}
+
+.wallet-caret {
+  color: var(--faint);
+  font-size: 0.7rem;
+}
+
+.profile-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.55rem);
+  min-width: 13rem;
+  padding: 0.9rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 0.9rem;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  z-index: 50;
+}
+
+.profile-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+}
+
+.profile-balance {
+  margin: 0 0 0.4rem;
+  color: var(--gold-bright);
+  font-weight: 700;
+}
+
+.profile-balance span {
+  color: var(--faint);
+  font-weight: 400;
   font-size: 0.8rem;
+}
+
+.profile-action {
+  text-align: left;
+  background: #171622;
+  color: var(--text);
+  border: 1px solid #2c2a3a;
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.profile-action:hover {
+  border-color: var(--gold-deep);
+}
+
+/* ── Stage: home is the bracket ─────────────────────────────────────────── */
+
+.stage {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 0.5rem;
+}
+
+.bracket-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.bracket-offline {
+  position: absolute;
+  top: 0.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  margin: 0;
+  color: var(--faint);
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  animation: soft-pulse 1.6s ease-in-out infinite;
+}
+
+/* Sized from the VIEWPORT, never from the auto-sized parent (a percentage
+   here resolves against a content-sized grid track and collapses the SVG). */
+.bracket-wrap {
+  position: relative;
+  width: min(92vmin, calc(100dvh - 6.5rem), 96vw);
+  aspect-ratio: 1;
+}
+
+.bracket {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bracket-backdrop {
+  fill: transparent;
+}
+
+.bracket-ring {
+  fill: none;
+  stroke: #16151f;
+  stroke-width: 1;
+}
+
+/* ── Edges: the constellation ───────────────────────────────────────────── */
+
+.bracket-edge {
+  fill: none;
+  stroke: var(--edge-idle);
+  stroke-width: 2;
   cursor: pointer;
   transition:
-    background 0.15s,
-    color 0.15s;
+    stroke 0.6s ease,
+    opacity 0.4s ease,
+    stroke-width 0.25s ease;
 }
 
-.wallet-logout:hover {
-  background: #3a3a48;
-  color: #fff;
+.edge-dead {
+  stroke: var(--edge-dead);
 }
+
+.edge-lit {
+  stroke: var(--gold);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.6));
+  animation: shimmer 3.2s ease-in-out infinite;
+}
+
+.edge-ignite {
+  animation: ignite 0.65s ease-out;
+}
+
+/* Hover focus: the chosen branch burns, the rest recedes. */
+.bracket-wrap--focus .bracket-edge:not(.edge-focus) {
+  opacity: 0.18;
+}
+
+.bracket-wrap--focus .bracket-node:not(.is-focus),
+.bracket-wrap--focus .bracket-slot-dot:not(.is-focus),
+.bracket-wrap--focus .bracket-score {
+  opacity: 0.28;
+}
+
+.edge-focus {
+  opacity: 1;
+  stroke-width: 4;
+  stroke: var(--gold-bright);
+  filter: drop-shadow(0 0 7px rgba(246, 217, 123, 0.65));
+}
+
+/* ── Nodes ──────────────────────────────────────────────────────────────── */
+
+.bracket-node {
+  cursor: pointer;
+  transition: opacity 0.4s ease;
+}
+
+.bracket-node-ring {
+  fill: #0d0d15;
+  stroke-width: 2.5;
+  transition: filter 0.2s ease;
+}
+
+.bracket-node.is-hover .bracket-node-ring,
+.bracket-node:focus-visible .bracket-node-ring {
+  filter: brightness(1.5) drop-shadow(0 0 7px rgba(246, 217, 123, 0.5));
+}
+
+.bracket-node.is-winner .bracket-node-ring {
+  filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.7));
+}
+
+.bracket-node.is-igniting {
+  animation: node-pop 0.65s ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Eliminated: dimmed but still readable — a faded memory, not a black hole. */
+.bracket-node.is-out {
+  opacity: 0.48;
+}
+
+.bracket-node.is-out .bracket-node-flag {
+  filter: grayscale(0.55) brightness(0.85);
+}
+
+.bracket-node-flag {
+  font-size: 17px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bracket-node-label {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  letter-spacing: 0.12em;
+  fill: #8f8b99;
+  user-select: none;
+}
+
+.bracket-node.is-winner .bracket-node-label {
+  fill: var(--gold-bright);
+}
+
+.bracket-slot-dot {
+  fill: #26252f;
+  transition: opacity 0.4s ease;
+}
+
+.bracket-score {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  fill: #d8d4c8;
+  stroke: var(--ink);
+  stroke-width: 4;
+  paint-order: stroke;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ── The trophy heart ───────────────────────────────────────────────────── */
+
+.trophy-glow {
+  animation: trophy-pulse 3s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.trophy-emoji {
+  font-size: 62px;
+  cursor: pointer;
+  filter: drop-shadow(0 0 14px rgba(212, 175, 55, 0.75));
+  user-select: none;
+}
+
+.bracket-trophy.has-champion .trophy-glow {
+  animation-duration: 1.6s;
+}
+
+.trophy-champion-halo {
+  fill: rgba(212, 175, 55, 0.16);
+  stroke: var(--gold);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.8));
+}
+
+.trophy-champion-flag {
+  font-size: 26px;
+}
+
+.trophy-champion-label {
+  font-family: var(--font-display);
+  font-size: 17px;
+  letter-spacing: 0.3em;
+  fill: var(--gold-bright);
+}
+
+/* ── Tooltip + detail cards ─────────────────────────────────────────────── */
+
+.bracket-tip {
+  position: absolute;
+  transform: translate(-50%, -130%);
+  pointer-events: none;
+  z-index: 20;
+  background: rgba(13, 13, 22, 0.94);
+  border: 1px solid var(--panel-edge);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+}
+
+.bracket-tip p {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.bracket-tip p:first-child {
+  font-weight: 700;
+  color: var(--gold-bright);
+}
+
+.bracket-card {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  width: 15.5rem;
+  background: rgba(13, 13, 22, 0.96);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--panel-edge);
+  border-radius: 0.9rem;
+  padding: 0.9rem;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.65);
+}
+
+.bracket-card--outright {
+  width: 17rem;
+}
+
+.card-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--faint);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.card-close:hover {
+  color: var(--text);
+}
+
+.card-round {
+  margin: 0 0 0.45rem;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.card-teams {
+  margin: 0 0 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.card-vs {
+  color: var(--faint);
+  font-size: 0.75rem;
+}
+
+.card-status {
+  margin: 0 0 0.65rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-note {
+  margin: 0.2rem 0;
+  color: var(--faint);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.card-prices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.card-prices--list {
+  max-height: 15rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+/* ── Price buttons + drift flashes ──────────────────────────────────────── */
+
+.price-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: #15141f;
+  border: 1px solid #2c2a3a;
+  border-radius: 0.6rem;
+  color: var(--text);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition:
+    border-color 0.18s,
+    background 0.18s,
+    transform 0.12s;
+}
+
+.price-button:hover:enabled {
+  border-color: var(--gold);
+  background: #1b192a;
+  transform: translateY(-1px);
+}
+
+.price-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.price-team {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  text-align: left;
+}
+
+.price-flag {
+  font-size: 1rem;
+}
+
+.price-odds {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-bright);
+}
+
+.price-button--up {
+  animation: flash-up 0.9s ease-out;
+}
+
+.price-button--down {
+  animation: flash-down 0.9s ease-out;
+}
+
+/* ── Shared page shell ──────────────────────────────────────────────────── */
 
 .shell {
   flex: 1;
@@ -76,55 +587,566 @@
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  padding: 2rem;
+  padding: 2rem 1.2rem 3rem;
   text-align: center;
 }
 
-.nav {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2rem;
-  padding-bottom: 1.5rem;
+.shell--top {
+  justify-content: flex-start;
 }
 
-.nav-link {
-  color: #d4af37;
-  text-decoration: none;
-  text-transform: uppercase;
+.page-title {
+  margin: 0.4rem 0 0.8rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
   letter-spacing: 0.2em;
-  font-size: 0.85rem;
-  font-weight: 600;
-  border-bottom: 1px solid transparent;
-  padding-bottom: 0.2rem;
-  transition:
-    border-color 0.2s,
-    color 0.2s;
-}
-
-.nav-link:hover {
-  color: #fdf6d8;
-  border-bottom-color: #d4af37;
-}
-
-h1 {
-  font-size: clamp(2.5rem, 8vw, 5rem);
-  margin: 0;
-  background: linear-gradient(180deg, #fdf6d8 0%, #d4af37 60%, #8a6d1d 100%);
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #fdf6d8 0%, var(--gold) 60%, var(--gold-deep) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-.status-title {
-  font-size: clamp(2rem, 5vw, 3rem);
+.page-empty {
+  color: var(--faint);
+  font-size: 0.95rem;
 }
 
-.sub {
-  color: #9a9aa8;
-  font-size: 1.1rem;
-  max-width: 40rem;
+/* ── Markets board ──────────────────────────────────────────────────────── */
+
+.round-section {
+  width: min(64rem, 100%);
+  text-align: left;
+  margin-bottom: 1.6rem;
+}
+
+.round-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid #ffffff10;
+  padding-bottom: 0.4rem;
+  margin: 0 0 0.9rem;
+}
+
+.market-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0.9rem;
+}
+
+.market-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 0.9rem;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  transition: border-color 0.2s;
+}
+
+.market-card--open:hover {
+  border-color: var(--gold-deep);
+}
+
+.market-card--suspended,
+.market-card--settled {
+  opacity: 0.55;
+}
+
+.market-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.market-name {
   margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.market-status {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.market-status--suspended {
+  color: #d9a03c;
+}
+
+.market-status--settled {
+  color: var(--faint);
+}
+
+.market-prices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+/* ── Bet slip drawer ────────────────────────────────────────────────────── */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(3, 3, 7, 0.55);
+  border: none;
+  cursor: pointer;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  width: min(22.5rem, 94vw);
+  background: var(--panel);
+  border-left: 1px solid var(--panel-edge);
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.55);
+  padding: 1rem 1.2rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  animation: drawer-in 0.28s ease-out;
+  overflow-y: auto;
+}
+
+.drawer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+}
+
+.drawer-close {
+  background: none;
+  border: none;
+  color: var(--faint);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.drawer-close:hover {
+  color: var(--text);
+}
+
+.slip-empty {
+  color: var(--faint);
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+.slip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.slip-market {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.slip-selection {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.slip-price {
+  margin-left: auto;
+  color: var(--gold-bright);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s;
+}
+
+.slip-price--up {
+  color: var(--up);
+}
+
+.slip-price--down {
+  color: var(--down);
+}
+
+.slip-stake-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.slip-stake {
+  background: #14131e;
+  border: 1px solid #2c2a3a;
+  border-radius: 0.6rem;
+  color: var(--text);
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0.55rem 0.75rem;
+  width: 100%;
+}
+
+.slip-stake:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.slip-quick {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.slip-chip {
+  flex: 1;
+  background: #171622;
+  border: 1px solid #2c2a3a;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 0.32rem 0;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.slip-chip:hover {
+  border-color: var(--gold-deep);
+  color: var(--text);
+}
+
+.slip-math {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  border-top: 1px dashed #2c2a3a;
+  padding-top: 0.6rem;
+}
+
+.slip-math-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+}
+
+.slip-math-row dt {
+  color: var(--muted);
+}
+
+.slip-math-row dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-bright);
+  font-weight: 600;
+}
+
+.slip-problem {
+  margin: 0;
+  color: var(--down);
+  font-size: 0.84rem;
+}
+
+.slip-place {
+  margin-top: 0.3rem;
+  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 60%, #b8952e 100%);
+  color: #171205;
+  border: none;
+  border-radius: 0.65rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 0.68rem;
+  cursor: pointer;
+  transition:
+    filter 0.15s,
+    transform 0.12s;
+}
+
+.slip-place:hover:enabled {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.slip-place:disabled {
+  filter: grayscale(0.7) brightness(0.6);
+  cursor: not-allowed;
+}
+
+.slip-cancel {
+  background: #171622;
+  border: 1px solid #2c2a3a;
+  color: var(--muted);
+  border-radius: 0.65rem;
+  padding: 0.6rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.slip-cancel:hover {
+  color: var(--text);
+  border-color: var(--faint);
+}
+
+.slip-moved {
+  border: 1px solid var(--gold-deep);
+  background: rgba(212, 175, 55, 0.07);
+  border-radius: 0.7rem;
+  padding: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.slip-moved p {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.slip-moved-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.slip-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1.6rem 0;
+  text-align: center;
+}
+
+.slip-confirm-mark {
+  margin: 0;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid var(--up);
+  color: var(--up);
+  font-size: 1.4rem;
+}
+
+.slip-confirm-title {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.slip-confirm-line {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.slip-confirm .slip-place {
+  margin-top: 1rem;
+  width: 100%;
+}
+
+/* ── My bets ────────────────────────────────────────────────────────────── */
+
+.bet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: min(44rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  text-align: left;
+}
+
+.bet-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 0.85rem;
+  padding: 0.75rem 1rem;
+  transition:
+    border-color 0.4s,
+    background 0.4s;
+}
+
+.bet-row--won {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.07), var(--panel) 45%);
+}
+
+.bet-row--lost {
+  opacity: 0.6;
+}
+
+.bet-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.bet-selection {
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bet-market {
+  color: var(--faint);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bet-row-figures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bet-stake {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.bet-return {
+  font-size: 0.88rem;
+  color: var(--gold-bright);
+}
+
+.bet-row--lost .bet-return {
+  color: var(--faint);
+}
+
+.bet-status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+}
+
+.bet-status--pending {
+  color: #e0c46a;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+
+.bet-status--won {
+  color: var(--up);
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.5);
+}
+
+.bet-status--lost {
+  color: var(--down);
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.bet-status--void {
+  color: var(--faint);
+  background: #171622;
+  border: 1px solid var(--panel-edge);
+}
+
+/* ── Hero (bracket flag dark) ───────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.hero-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30rem;
+  height: 30rem;
+  transform: translate(-50%, -58%);
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.16) 0%, transparent 62%);
+  animation: soft-pulse 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.hero-trophy {
+  font-size: 5.4rem;
+  filter: drop-shadow(0 0 26px rgba(212, 175, 55, 0.75));
+  animation: soft-pulse 3s ease-in-out infinite;
+}
+
+.hero-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 8vw, 5rem);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #fdf6d8 0%, var(--gold) 60%, var(--gold-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-sub {
+  color: var(--muted);
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+/* ── Status page ────────────────────────────────────────────────────────── */
+
+.status-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #fdf6d8 0%, var(--gold) 60%, var(--gold-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .services {
@@ -161,7 +1183,7 @@ h1 {
 
 .dot.checking {
   background: #eab308;
-  animation: pulse 1.2s ease-in-out infinite;
+  animation: soft-pulse 1.2s ease-in-out infinite;
 }
 
 .service-name {
@@ -169,23 +1191,186 @@ h1 {
 }
 
 .service-status {
-  color: #9a9aa8;
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
 .back-link {
-  color: #5b5b68;
+  color: var(--faint);
   text-decoration: none;
   font-size: 0.85rem;
   margin-top: 2rem;
 }
 
 .back-link:hover {
-  color: #9a9aa8;
+  color: var(--muted);
 }
 
-@keyframes pulse {
+/* ── Confetti (champion, CSS only) ──────────────────────────────────────── */
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -5vh;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0.9;
+  animation: confetti-fall linear infinite;
+}
+
+/* ── Keyframes ──────────────────────────────────────────────────────────── */
+
+@keyframes trophy-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
   50% {
-    opacity: 0.3;
+    opacity: 1;
+    transform: scale(1.07);
+  }
+}
+
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes ignite {
+  0% {
+    stroke: var(--edge-idle);
+    stroke-width: 2;
+    filter: none;
+  }
+  55% {
+    stroke: var(--gold-bright);
+    stroke-width: 5;
+    filter: drop-shadow(0 0 14px rgba(246, 217, 123, 0.95));
+  }
+  100% {
+    stroke: var(--gold);
+    stroke-width: 3;
+    filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.6));
+  }
+}
+
+@keyframes node-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes flash-up {
+  0% {
+    border-color: var(--up);
+    background: rgba(52, 211, 153, 0.18);
+  }
+  100% {
+    border-color: #2c2a3a;
+    background: #15141f;
+  }
+}
+
+@keyframes flash-down {
+  0% {
+    border-color: var(--down);
+    background: rgba(248, 113, 113, 0.18);
+  }
+  100% {
+    border-color: #2c2a3a;
+    background: #15141f;
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-5vh) rotate(0deg);
+  }
+  100% {
+    transform: translateY(110vh) rotate(720deg);
+  }
+}
+
+/* ── Small screens: the bracket stays circular and legible ──────────────── */
+
+@media (max-width: 640px) {
+  .topbar {
+    padding: 0.55rem 0.8rem;
+    gap: 0.5rem;
+  }
+
+  .brand-word {
+    display: none;
+  }
+
+  .nav {
+    gap: 1rem;
+  }
+
+  .wallet-name {
+    display: none;
+  }
+
+  .wallet-dot {
+    display: none;
+  }
+
+  .bracket-node-label {
+    font-size: 15px;
+  }
+
+  .bracket-card {
+    width: min(15.5rem, 88vw);
+  }
+}
+
+/* Respect punters who prefer stillness. */
+@media (prefers-reduced-motion: reduce) {
+  .trophy-glow,
+  .hero-glow,
+  .hero-trophy,
+  .edge-lit,
+  .bracket-offline,
+  .confetti-piece {
+    animation: none;
   }
 }
