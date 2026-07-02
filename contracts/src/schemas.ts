@@ -70,6 +70,8 @@ export type Market = z.infer<typeof MarketSchema>;
 
 export const AccountSchema = z.object({
   id: z.string().uuid(),
+  /** login identity for human punters; null for bots (provisioned via admin key) */
+  email: z.string().email().nullable(),
   name: z.string().min(1).max(50),
   balance: z.number().min(0),
   isBot: z.boolean(),

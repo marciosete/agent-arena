@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { BetStatusSchema, SettlementEventSchema, TeamIdSchema } from './schemas';
+import { AccountSchema, BetStatusSchema, SettlementEventSchema, TeamIdSchema } from './schemas';
 
 /**
  * Service topology and REST contracts.
@@ -57,15 +57,42 @@ export const RepriceRequestSchema = z.object({
 export type RepriceRequest = z.infer<typeof RepriceRequestSchema>;
 
 // ── Betting service (:4002) ────────────────────────────────────────────
+// Accounts + auth are PRE-BUILT platform infra (passwordless email + OTP → session token).
 // GET  /health                → HealthResponse
-// POST /accounts              → Account         (body: CreateAccountRequest; find-or-create by unique name)
-// GET  /accounts/:id          → Account
+// POST /auth/request-otp      → { ok: true }    (body: RequestOtpRequest) — emails a 6-digit code; always 200 (no account enumeration)
+// POST /auth/verify           → AuthResponse    (body: VerifyOtpRequest) — verifies the code, find-or-create by email, issues a session token
+// POST /accounts              → AuthResponse    🔒 x-admin-key (body: CreateAccountRequest) — bot provisioning (bots have no inbox)
+// GET  /accounts/:id          → Account         (public: balances show on the leaderboard)
 // GET  /accounts              → Account[]
-// POST /bets                  → Bet             (body: PlaceBetRequest)
+// POST /bets                  → Bet             🔒 Bearer (body: PlaceBetRequest; the account is derived from the token, never trusted from the body)
 // GET  /bets?accountId=:id    → Bet[]
-// POST /settle                → SettleResponse  (body: SettleRequest; called by sim)
+// POST /settle                → SettleResponse  🔒 x-admin-key (body: SettleRequest; called by sim)
 // GET  /exposure              → ExposureReport  (trader back office)
+//
+// Auth convention: /auth/verify and (admin) /accounts return { token, account }. Send the token
+// as `Authorization: Bearer <token>` on protected endpoints. Tokens are signed + expiring.
 
+// Auth (pre-built): passwordless email + one-time code → signed session token.
+export const RequestOtpRequestSchema = z.object({
+  email: z.string().email(),
+});
+export type RequestOtpRequest = z.infer<typeof RequestOtpRequestSchema>;
+
+export const VerifyOtpRequestSchema = z.object({
+  email: z.string().email(),
+  /** the 6-digit code from the email */
+  code: z.string().regex(/^\d{6}$/),
+});
+export type VerifyOtpRequest = z.infer<typeof VerifyOtpRequestSchema>;
+
+export const AuthResponseSchema = z.object({
+  /** send as `Authorization: Bearer <token>` on protected endpoints */
+  token: z.string().min(1),
+  account: AccountSchema,
+});
+export type AuthResponse = z.infer<typeof AuthResponseSchema>;
+
+/** Bot provisioning only (admin-keyed) — human accounts are created by /auth/verify. */
 export const CreateAccountRequestSchema = z.object({
   name: z.string().min(1).max(50),
   isBot: z.boolean().default(false),
@@ -73,7 +100,8 @@ export const CreateAccountRequestSchema = z.object({
 export type CreateAccountRequest = z.infer<typeof CreateAccountRequestSchema>;
 
 export const PlaceBetRequestSchema = z.object({
-  accountId: z.string().uuid(),
+  // No accountId: the betting service derives the account from the Bearer session token,
+  // so a punter can only ever bet from their own wallet (no IDOR).
   marketId: z.string().min(1),
   selectionId: z.string().min(1),
   stake: z.number().positive().max(OPENING_BALANCE),
