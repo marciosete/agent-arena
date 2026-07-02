@@ -1,4 +1,4 @@
-import { UnauthorizedException, type ExecutionContext } from '@nestjs/common';
+import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AdminGuard } from './admin.guard';
 
@@ -25,17 +25,15 @@ describe('AdminGuard', () => {
     );
   });
 
-  it('rejects control with a wrong key', () => {
+  it('rejects control with a wrong key (403 — authenticated but not authorized)', () => {
     process.env.SIMULATOR_ADMIN_KEY = 'secret-key';
     expect(() =>
       new AdminGuard().canActivate(contextWithHeaders({ 'x-admin-key': 'wrong' }))
-    ).toThrow(UnauthorizedException);
+    ).toThrow(ForbiddenException);
   });
 
-  it('rejects control with no key header', () => {
+  it('rejects control with no key header (403)', () => {
     process.env.SIMULATOR_ADMIN_KEY = 'secret-key';
-    expect(() => new AdminGuard().canActivate(contextWithHeaders({}))).toThrow(
-      UnauthorizedException
-    );
+    expect(() => new AdminGuard().canActivate(contextWithHeaders({}))).toThrow(ForbiddenException);
   });
 });

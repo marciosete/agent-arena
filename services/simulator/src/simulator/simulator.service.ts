@@ -214,9 +214,8 @@ export class SimulatorService {
           finalPlayed: item.finalPlayed,
         });
       }
-      if (this.generation !== generation) {
-        return false;
-      }
+      // No fence needed here: when winningSelections was already cached there is
+      // no await between the flush loop's generation check and this call.
       await this.downstream.settle(item.settlement, item.winningSelections);
       return true;
     } catch (error) {

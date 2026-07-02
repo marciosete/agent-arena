@@ -71,11 +71,19 @@ describe('AppModule (e2e)', () => {
       expect(response.status).toBe(200);
     });
 
-    it('rejects the control plane without the admin key (401)', async () => {
+    it('rejects the control plane without the admin key (403 — canonical integration.md code)', async () => {
       for (const path of ['/play-next', '/run', '/reset']) {
         const response = await request(app.getHttpServer()).post(path).set(AUTH, BEARER);
-        expect(response.status, path).toBe(401);
+        expect(response.status, path).toBe(403);
       }
+    });
+
+    it('rejects the control plane with a wrong admin key (403)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/play-next')
+        .set(AUTH, BEARER)
+        .set(ADMIN_HEADER, 'not-the-key');
+      expect(response.status).toBe(403);
     });
 
     it('rejects the control plane without a bearer token even with the admin key (401)', async () => {
@@ -133,6 +141,17 @@ describe('AppModule (e2e)', () => {
       const simulator = app.get(SimulatorService);
       await expect.poll(() => simulator.getState().champion, { timeout: 10_000 }).not.toBeNull();
       expect(simulator.getState().remainingFixtureIds).toEqual([]);
+    });
+
+    it('accepts a body-less /run, applying the contract default interval', async () => {
+      // Everything is already played (previous test), so this is a pure
+      // validation check: an undefined body must default, not 400.
+      const response = await request(app.getHttpServer())
+        .post('/run')
+        .set(AUTH, BEARER)
+        .set(ADMIN_HEADER, ADMIN_KEY);
+      expect(response.status).toBe(201);
+      expect(SimStateSchema.parse(response.body).champion).not.toBeNull();
 
       // leave the suite on the seed state
       const reset = await request(app.getHttpServer())

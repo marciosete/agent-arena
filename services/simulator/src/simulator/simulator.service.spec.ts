@@ -122,6 +122,13 @@ describe('SimulatorService', () => {
     expect(state.remainingFixtureIds).not.toContain(OPENER);
   });
 
+  it('falls back to a clock seed when SIMULATOR_SEED is malformed or empty', () => {
+    const { service: malformed } = makeService('not-a-number');
+    expect(SimStateSchema.parse(malformed.getState()).champion).toBeNull();
+    const { service: empty } = makeService('');
+    expect(SimStateSchema.parse(empty.getState()).champion).toBeNull();
+  });
+
   it('is deterministic under a fixed seed', async () => {
     const { service: first } = makeService('1234');
     await playAll(first);
@@ -190,6 +197,57 @@ describe('SimulatorService', () => {
     expect(downstream.settle).not.toHaveBeenCalled();
   });
 
+  it('queues a failed settlement and retries it in order on the next play', async () => {
+    const { service, downstream } = makeService('42');
+    downstream.reprice.mockRejectedValueOnce(new Error('pricing rebooting'));
+
+    await service.playNext(); // R32-9 — reprice fails, settlement queued
+    expect(downstream.settle).not.toHaveBeenCalled();
+
+    await service.playNext(); // R32-10 — the queue drains oldest-first
+    const settledFixtures = downstream.settle.mock.calls.map(
+      (call) => (call[0] as SettlementEvent).fixtureId
+    );
+    expect(settledFixtures).toEqual([OPENER, 'R32-10']);
+  });
+
+  it('gives up on a settlement after bounded attempts and keeps the rest flowing', async () => {
+    const { service, downstream } = makeService('42');
+    downstream.reprice.mockRejectedValue(new Error('pricing down'));
+
+    for (let i = 0; i < 5; i += 1) {
+      await service.playNext(); // R32-9's settlement burns through its attempts
+    }
+    downstream.reprice.mockImplementation((settlement: SettlementEvent) =>
+      Promise.resolve(repriceResponseFor(service, settlement))
+    );
+    await service.playNext(); // pricing back up — everything still queued drains
+
+    const settledFixtures = downstream.settle.mock.calls.map(
+      (call) => (call[0] as SettlementEvent).fixtureId
+    );
+    expect(settledFixtures).toEqual(['R32-10', 'R32-11', 'R32-12', 'R32-13', 'R32-14']);
+  });
+
+  it('does not settle a result that was reset away mid-flight', async () => {
+    const { service, downstream } = makeService('42');
+    let releaseReprice: () => void = () => {};
+    downstream.reprice.mockImplementationOnce(
+      (settlement: SettlementEvent) =>
+        new Promise<Market[]>((resolve) => {
+          releaseReprice = () => resolve(repriceResponseFor(service, settlement));
+        })
+    );
+
+    const play = service.playNext();
+    service.reset();
+    releaseReprice(); // pricing answers only after the reset
+    await play;
+
+    expect(downstream.settle).not.toHaveBeenCalled();
+    expect(service.getState().playedFixtureIds).toEqual([]);
+  });
+
   it('survives betting being down: bracket advances and the run continues', async () => {
     const { service, downstream } = makeService('42');
     downstream.settle.mockRejectedValue(new Error('ECONNREFUSED'));
@@ -246,6 +304,49 @@ describe('SimulatorService', () => {
       { timeout: 5000 }
     );
     expect(downstream.reprice).toHaveBeenCalledTimes(FIXTURES.length);
+  });
+
+  it('serializes concurrent plays through one in-order settlement flush', async () => {
+    const { service, downstream } = makeService('42');
+    const releases: (() => void)[] = [];
+    downstream.reprice.mockImplementation(
+      (settlement: SettlementEvent) =>
+        new Promise<Market[]>((resolve) => {
+          releases.push(() => resolve(repriceResponseFor(service, settlement)));
+        })
+    );
+
+    const first = service.playNext();
+    const second = service.playNext(); // lands while the first flush is mid-reprice
+    await second; // returns without a second flush — the latch held
+
+    releases[0]();
+    await vi.waitFor(() => {
+      expect(releases).toHaveLength(2); // the one flush moved on to the second item
+    });
+    releases[1]();
+    await first;
+
+    const settledFixtures = downstream.settle.mock.calls.map(
+      (call) => (call[0] as SettlementEvent).fixtureId
+    );
+    expect(settledFixtures).toEqual([OPENER, 'R32-10']);
+  });
+
+  it('logs and stops the run loop when a fixture cannot be simulated', async () => {
+    const { service } = makeService('42');
+    const opener = fixtureIn(service.getState().fixtures, OPENER);
+    opener.homeTeamId = 'XXX'; // corrupted slot: simulateFixture will throw
+
+    service.startRun(0);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(service.getState().playedFixtureIds).toEqual([]);
+
+    opener.homeTeamId = 'POR'; // healed bracket: a new run proceeds normally
+    service.startRun(0);
+    await vi.waitFor(() => {
+      expect(service.getState().champion).not.toBeNull();
+    });
   });
 
   it('reset stops an in-flight run', async () => {

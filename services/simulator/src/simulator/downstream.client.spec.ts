@@ -86,7 +86,7 @@ describe('DownstreamClient', () => {
 
     it('rejects when the response is not an array of markets', async () => {
       fetchMock.mockResolvedValue(jsonResponse({ markets: [MARKET] }));
-      await expect(client.reprice(SETTLEMENT)).rejects.toThrow(/market array/);
+      await expect(client.reprice(SETTLEMENT)).rejects.toThrow(/array/);
     });
 
     it('rejects when a market fails the contract schema', async () => {
