@@ -29,15 +29,28 @@ describe('FlagsService', () => {
   it('seeds every defined flag idempotently on init', async () => {
     await service.onModuleInit();
     expect(prisma.featureFlag.upsert).toHaveBeenCalledTimes(FLAG_DEFINITIONS.length);
+    // Seeding must key each upsert on the flag and carry its description —
+    // a dropped `where`/`update` payload would corrupt the seed silently.
     const firstCall = prisma.featureFlag.upsert.mock.calls[0][0];
-    expect(firstCall.create.enabled).toBe(false);
+    expect(firstCall).toEqual({
+      where: { key: FLAG_DEFINITIONS[0].key },
+      update: { description: FLAG_DEFINITIONS[0].description },
+      create: {
+        key: FLAG_DEFINITIONS[0].key,
+        enabled: false,
+        description: FLAG_DEFINITIONS[0].description,
+      },
+    });
   });
 
   it('does not crash the service when seeding fails', async () => {
     const errorSpy = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
     prisma.featureFlag.upsert.mockRejectedValue(new Error('db down'));
     await expect(service.onModuleInit()).resolves.toBeUndefined();
-    expect(errorSpy).toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Flag seeding failed — is the database reachable?',
+      expect.any(Error)
+    );
     errorSpy.mockRestore();
   });
 
@@ -54,6 +67,8 @@ describe('FlagsService', () => {
         updatedAt: NOW.toISOString(),
       },
     ]);
+    // Deterministic, key-ordered listing is part of the contract.
+    expect(prisma.featureFlag.findMany).toHaveBeenCalledWith({ orderBy: { key: 'asc' } });
   });
 
   it('updates a known flag', async () => {
@@ -66,6 +81,10 @@ describe('FlagsService', () => {
     });
     const flag = await service.update('punter-markets', true);
     expect(flag.enabled).toBe(true);
+    // The existence check must filter by the specific key, not read any row.
+    expect(prisma.featureFlag.findUnique).toHaveBeenCalledWith({
+      where: { key: 'punter-markets' },
+    });
     expect(prisma.featureFlag.update).toHaveBeenCalledWith({
       where: { key: 'punter-markets' },
       data: { enabled: true },
@@ -74,6 +93,8 @@ describe('FlagsService', () => {
 
   it('rejects unknown flags with 404', async () => {
     prisma.featureFlag.findUnique.mockResolvedValue(null);
-    await expect(service.update('nope', true)).rejects.toBeInstanceOf(NotFoundException);
+    const error = await service.update('nope', true).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(NotFoundException);
+    expect((error as NotFoundException).message).toBe('Unknown flag: nope');
   });
 });

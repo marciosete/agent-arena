@@ -27,7 +27,9 @@ describe('FlagsWriteGuard', () => {
   it('rejects writes with a wrong key', () => {
     process.env.FLAGS_ADMIN_KEY = 'secret-key';
     const context = contextWithHeaders({ 'x-admin-key': 'wrong' });
-    expect(() => new FlagsWriteGuard().canActivate(context)).toThrow(UnauthorizedException);
+    const guard = new FlagsWriteGuard();
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(context)).toThrow('x-admin-key header required to modify flags');
   });
 
   it('rejects writes with no key header', () => {

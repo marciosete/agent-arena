@@ -37,3 +37,8 @@ npm-debug.log*
 # Reports
 osv-report.json
 secrets-audit.json
+
+# Mutation testing (Stryker)
+.stryker-tmp/
+**/reports/mutation/
+stryker.log

@@ -14,6 +14,7 @@ export default tseslint.config(
       '**/dist/**',
       '**/coverage/**',
       '**/jscpd-report/**',
+      '**/.stryker-tmp/**',
       '**/*.d.ts',
       '**/.vite/**',
       '**/generated/**',
@@ -31,7 +32,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/**/*.{ts,tsx}'],
+    files: ['apps/**/*.{ts,tsx}', 'web-auth/**/*.{ts,tsx}'],
     languageOptions: {
       globals: { ...globals.browser },
     },

@@ -1,0 +1,39 @@
+name: Mutation Testing
+
+# Stryker is slow and occasionally non-deterministic, so it runs on its own
+# nightly schedule rather than gating PRs or deploys. break=80 lives in each
+# workspace's stryker.config.json (contracts is report-only). Manual runs via
+# the Actions tab (workflow_dispatch). Scheduled runs use the default branch.
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    name: Stryker Mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm install -g npm@11
+      - run: npm ci
+      - run: npm run mutation
+
+      # Reports are useful even (especially) when the run fails the threshold.
+      - name: Upload mutation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-reports
+          path: '**/reports/mutation/mutation.html'
+          if-no-files-found: warn
+          retention-days: 14
