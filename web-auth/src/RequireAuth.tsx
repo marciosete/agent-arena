@@ -15,8 +15,13 @@ export function RequireAuth({ children }: Readonly<RequireAuthProps>) {
   const { session } = useAuth();
 
   useEffect(() => {
-    if (!session && globalThis.location?.pathname !== '/login') {
+    const path = globalThis.location?.pathname;
+    if (!session && path !== '/login') {
       globalThis.history.pushState({}, '', '/login');
+    } else if (session && path === '/login') {
+      // After a successful sign-in, get the address bar off /login (replace, not push,
+      // so Back doesn't return to the login screen).
+      globalThis.history.replaceState({}, '', '/');
     }
   }, [session]);
 

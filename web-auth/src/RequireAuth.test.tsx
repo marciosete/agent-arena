@@ -59,4 +59,19 @@ describe('RequireAuth', () => {
     expect(screen.getByText('secret content')).toBeTruthy();
     expect(screen.queryByText('Sign in to Arena')).toBeNull();
   });
+
+  it('resets the URL to / after signing in on the /login route', () => {
+    window.history.pushState({}, '', '/login');
+    vi.mocked(useAuth).mockReturnValue({
+      session: SESSION,
+      ...SPIES,
+    } as unknown as ReturnType<typeof useAuth>);
+    render(
+      <RequireAuth>
+        <div>secret content</div>
+      </RequireAuth>
+    );
+    expect(screen.getByText('secret content')).toBeTruthy();
+    expect(window.location.pathname).toBe('/');
+  });
 });
