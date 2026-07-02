@@ -49,7 +49,7 @@
 - My-bets view: pending/won/lost with returns, live during simulator runs
 - **The circular Road-to-the-Final bracket** (hand-rolled SVG): fixtures on concentric rings,
   winner paths igniting gold toward the trophy, animating live as the simulator plays
-- Service-health footer (the scaffold's dots, kept)
+- Flag-driven navigation (a feature's nav item appears when released) + `/status` health page — both scaffolded
 - _Stretch:_ cash-out teaser, CSS confetti for the champion
 
 ### Trader ops (`apps/trader-ops`, :5174)

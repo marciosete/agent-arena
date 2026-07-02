@@ -17,6 +17,14 @@ const SERVICE_URLS: Record<ServiceKey, string> = {
 const SERVICES: ServiceKey[] = ['pricing', 'betting', 'simulator', 'flags'];
 const POLL_INTERVAL_MS = 5_000;
 
+/** A feature enters the navigation the moment its flag flips on. */
+const NAV_ITEMS = [
+  { flag: 'punter-markets', label: 'Markets', href: '/markets' },
+  { flag: 'punter-bet-slip', label: 'Bet Slip', href: '/bet-slip' },
+  { flag: 'punter-my-bets', label: 'My Bets', href: '/my-bets' },
+  { flag: 'punter-bracket', label: 'Bracket', href: '/bracket' },
+] as const;
+
 async function checkHealth(service: ServiceKey): Promise<ServiceStatus> {
   try {
     const response = await fetch(`${SERVICE_URLS[service]}/health`);
@@ -38,27 +46,15 @@ async function fetchFlags(): Promise<FeatureFlag[]> {
   }
 }
 
-export default function App() {
-  const [statuses, setStatuses] = useState<Record<ServiceKey, ServiceStatus>>({
-    pricing: 'checking',
-    betting: 'checking',
-    simulator: 'checking',
-    flags: 'checking',
-  });
+function useFlags(): FeatureFlag[] {
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function poll(): Promise<void> {
-      const [entries, flagList] = await Promise.all([
-        Promise.all(
-          SERVICES.map(async (service) => [service, await checkHealth(service)] as const)
-        ),
-        fetchFlags(),
-      ]);
+      const flagList = await fetchFlags();
       if (!cancelled) {
-        setStatuses(Object.fromEntries(entries) as Record<ServiceKey, ServiceStatus>);
         setFlags(flagList);
       }
     }
@@ -71,13 +67,73 @@ export default function App() {
     };
   }, []);
 
+  return flags;
+}
+
+function useServiceStatuses(): Record<ServiceKey, ServiceStatus> {
+  const [statuses, setStatuses] = useState<Record<ServiceKey, ServiceStatus>>({
+    pricing: 'checking',
+    betting: 'checking',
+    simulator: 'checking',
+    flags: 'checking',
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function poll(): Promise<void> {
+      const entries = await Promise.all(
+        SERVICES.map(async (service) => [service, await checkHealth(service)] as const)
+      );
+      if (!cancelled) {
+        setStatuses(Object.fromEntries(entries) as Record<ServiceKey, ServiceStatus>);
+      }
+    }
+
+    void poll();
+    const timer = setInterval(() => void poll(), POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  return statuses;
+}
+
+function Nav({ flags }: { flags: FeatureFlag[] }) {
+  const enabled = new Set(flags.filter((flag) => flag.enabled).map((flag) => flag.key));
+  const items = NAV_ITEMS.filter((item) => enabled.has(item.flag));
+  if (items.length === 0) {
+    return null;
+  }
+  return (
+    <nav className="nav" aria-label="primary">
+      {items.map((item) => (
+        <a key={item.flag} className="nav-link" href={item.href}>
+          {item.label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+function HomePage() {
+  const flags = useFlags();
   return (
     <main className="shell">
-      <p className="kicker">Sportsbet × Claude · Agent Arena</p>
+      <Nav flags={flags} />
       <h1>Road to the Final</h1>
-      <p className="sub">
-        A World Cup sportsbook, built live by one engineer and a fleet of agents.
-      </p>
+      <p className="sub">The World Cup knockout stage. Every match. Every price.</p>
+    </main>
+  );
+}
+
+function StatusPage() {
+  const statuses = useServiceStatuses();
+  return (
+    <main className="shell">
+      <h1 className="status-title">Platform Status</h1>
       <ul className="services" aria-label="platform services">
         {SERVICES.map((service) => (
           <li key={service} className="service">
@@ -87,19 +143,13 @@ export default function App() {
           </li>
         ))}
       </ul>
-      {flags.length > 0 && (
-        <ul className="flags" aria-label="feature flags">
-          {flags.map((flag) => (
-            <li key={flag.key} className={`flag ${flag.enabled ? 'is-live' : 'is-dark'}`}>
-              <span className="flag-key">{flag.key}</span>
-              <span className="flag-state">{flag.enabled ? 'live' : 'dark'}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="hint">
-        Services light up as the workstreams ship them. Features go live when their flag flips.
-      </p>
+      <a className="back-link" href="/">
+        ← home
+      </a>
     </main>
   );
+}
+
+export default function App() {
+  return window.location.pathname === '/status' ? <StatusPage /> : <HomePage />;
 }

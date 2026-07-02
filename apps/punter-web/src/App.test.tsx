@@ -5,8 +5,14 @@ import App from './App';
 const FLAG_FIXTURE = [
   {
     key: 'punter-markets',
-    enabled: false,
+    enabled: true,
     description: 'markets',
+    updatedAt: '2026-07-02T10:00:00.000Z',
+  },
+  {
+    key: 'punter-bet-slip',
+    enabled: false,
+    description: 'bet slip',
     updatedAt: '2026-07-02T10:00:00.000Z',
   },
   {
@@ -40,49 +46,72 @@ function stubFetch(options: {
   );
 }
 
-describe('App', () => {
+describe('home page', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    window.history.pushState({}, '', '/');
   });
 
-  it('renders the event brand', () => {
-    stubFetch({});
+  it('renders the hero with no nav while every feature is dark', async () => {
+    stubFetch({ flags: [] });
     render(<App />);
     expect(screen.getByText('Road to the Final')).toBeTruthy();
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(0));
+    expect(screen.queryByLabelText('primary')).toBeNull();
+    expect(screen.queryByText('online')).toBeNull();
+  });
+
+  it('shows nav items only for enabled flags', async () => {
+    stubFetch({ flags: FLAG_FIXTURE });
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Markets')).toBeTruthy());
+    expect(screen.getByText('Bracket')).toBeTruthy();
+    expect(screen.queryByText('Bet Slip')).toBeNull();
+    expect(screen.queryByText('My Bets')).toBeNull();
+  });
+
+  it('hides the nav when the flag service is unreachable', async () => {
+    stubFetch({ reject: true });
+    render(<App />);
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(0));
+    expect(screen.queryByLabelText('primary')).toBeNull();
+  });
+
+  it('hides the nav when the flag payload is malformed', async () => {
+    stubFetch({ flags: [{ nope: true }] });
+    render(<App />);
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(0));
+    expect(screen.queryByLabelText('primary')).toBeNull();
+  });
+});
+
+describe('status page', () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    window.history.pushState({}, '', '/');
   });
 
   it('shows every service online when health checks succeed', async () => {
     stubFetch({});
+    window.history.pushState({}, '', '/status');
     render(<App />);
+    expect(screen.getByText('Platform Status')).toBeTruthy();
     await waitFor(() => expect(screen.getAllByText('online')).toHaveLength(4));
   });
 
   it('shows services offline when health checks are rejected', async () => {
     stubFetch({ reject: true });
+    window.history.pushState({}, '', '/status');
     render(<App />);
     await waitFor(() => expect(screen.getAllByText('offline')).toHaveLength(4));
   });
 
   it('shows services offline when health checks respond unhealthy', async () => {
     stubFetch({ healthOk: false, flagsOk: false });
+    window.history.pushState({}, '', '/status');
     render(<App />);
     await waitFor(() => expect(screen.getAllByText('offline')).toHaveLength(4));
-    expect(screen.queryByLabelText('feature flags')).toBeNull();
-  });
-
-  it('renders flags with their live/dark state', async () => {
-    stubFetch({ flags: FLAG_FIXTURE });
-    render(<App />);
-    await waitFor(() => expect(screen.getByText('punter-markets')).toBeTruthy());
-    expect(screen.getAllByText('dark')).toHaveLength(1);
-    expect(screen.getAllByText('live')).toHaveLength(1);
-  });
-
-  it('hides the flag strip when the payload is malformed', async () => {
-    stubFetch({ flags: [{ nope: true }] });
-    render(<App />);
-    await waitFor(() => expect(screen.getAllByText('online')).toHaveLength(4));
-    expect(screen.queryByLabelText('feature flags')).toBeNull();
   });
 });

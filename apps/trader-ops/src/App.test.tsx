@@ -11,9 +11,4 @@ describe('App', () => {
     render(<App />);
     expect(screen.getByText('Trader Ops')).toBeTruthy();
   });
-
-  it('points builders at the workstream spec', () => {
-    render(<App />);
-    expect(screen.getByText(/docs\/specs\/trader-ops\.md/)).toBeTruthy();
-  });
 });

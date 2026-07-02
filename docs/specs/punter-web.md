@@ -33,8 +33,10 @@ radiating from a glowing golden trophy. This is the screen everyone photographs.
    `punter-confetti` → confetti. Dark means _absent_ — no teasers, no disabled stubs. A flag
    flip must reveal the feature within seconds, no reload. This is how the host releases
    features live during the show.
-7. Keep the service-health + flag strip from the scaffold somewhere visible — it tells the
-   story of the platform coming alive.
+7. The scaffold already provides the two release-story surfaces: the **flag-driven nav**
+   (a feature's nav item appears the moment its flag flips) and the **`/status` page**
+   (service health dots). Build each feature as the page behind its nav item, and keep both
+   surfaces working.
 
 All service URLs must resolve as `import.meta.env.VITE_<SERVICE>_URL ?? BASE_URLS.<service>`
 (see the scaffold's `App.tsx`) — the same build runs on localhost and on Vercel against the

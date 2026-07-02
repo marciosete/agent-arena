@@ -36,8 +36,8 @@ enterprise-grade software — through real quality gates — in one sitting.
 This is the "not vibe coding" spine: **integration, review, deploy and release are four
 separate, visible steps.**
 
-- **From minute 0**: the punter app is LIVE in production (Vercel URL on screen) — and empty.
-  The flag strip shows five dark flags. "We will deploy all day. We will release when we choose."
+- **From minute 0**: the punter app is LIVE at www.hackathon.beer — and empty: a hero title
+  and no navigation, because all five flags are dark (service health lives at /status). "We will deploy all day. We will release when we choose."
 - **Every checkpoint commit** → gates run on camera → push → Render/Vercel auto-deploy.
   Production updates continuously; the audience sees deploys are boring and constant.
 - **Once, mid-show (~1:30), do the full loop ceremonially** with the first finished feature

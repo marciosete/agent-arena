@@ -9,12 +9,31 @@
   text-align: center;
 }
 
-.kicker {
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  padding-bottom: 1.5rem;
+}
+
+.nav-link {
   color: #d4af37;
+  text-decoration: none;
   text-transform: uppercase;
-  letter-spacing: 0.35em;
-  font-size: 0.8rem;
-  margin: 0;
+  letter-spacing: 0.2em;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 0.2rem;
+  transition:
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.nav-link:hover {
+  color: #fdf6d8;
+  border-bottom-color: #d4af37;
 }
 
 h1 {
@@ -24,6 +43,10 @@ h1 {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+.status-title {
+  font-size: clamp(2rem, 5vw, 3rem);
 }
 
 .sub {
@@ -36,6 +59,8 @@ h1 {
 .services {
   list-style: none;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 2.5rem;
   padding: 1.5rem 0 0;
   margin: 0;
@@ -77,54 +102,15 @@ h1 {
   font-size: 0.85rem;
 }
 
-.flags {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.6rem;
-  padding: 1rem 0 0;
-  margin: 0;
-  max-width: 46rem;
-}
-
-.flag {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  border: 1px solid #2a2a38;
-  border-radius: 999px;
-  padding: 0.3rem 0.8rem;
-  font-size: 0.8rem;
-}
-
-.flag-key {
-  color: #9a9aa8;
-}
-
-.flag-state {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.flag.is-dark .flag-state {
+.back-link {
   color: #5b5b68;
-}
-
-.flag.is-live {
-  border-color: #d4af3766;
-}
-
-.flag.is-live .flag-state {
-  color: #d4af37;
-}
-
-.hint {
-  color: #5b5b68;
+  text-decoration: none;
   font-size: 0.85rem;
   margin-top: 2rem;
+}
+
+.back-link:hover {
+  color: #9a9aa8;
 }
 
 @keyframes pulse {
