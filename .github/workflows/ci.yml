@@ -59,6 +59,26 @@ jobs:
       - name: Duplication Check
         run: npm run check:duplicates
 
+      # Single monorepo project on SonarCloud needs repo-root-relative coverage
+      # paths; vitest emits workspace-relative ones (SF:src/...).
+      - name: Rewrite lcov paths to repo-root (SonarCloud monorepo)
+        run: |
+          for ws in apps/punter-web apps/trader-ops services/betting services/flags \
+                    services/pricing services/simulator contracts bots; do
+            f="$ws/coverage/lcov.info"
+            if [ -f "$f" ]; then sed -i "s#^SF:#SF:$ws/#" "$f"; fi
+          done
+
+      # Blocking: qualitygate.wait fails the job (and gates deploy) if the
+      # SonarCloud quality gate fails. Config lives in ./sonar-project.properties.
+      - name: SonarQube Cloud Scan
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
+
   secrets:
     name: Secret Scan
     runs-on: ubuntu-latest
