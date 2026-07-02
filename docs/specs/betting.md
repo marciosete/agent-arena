@@ -60,4 +60,4 @@ did the work. Then settle a fixture and read the ledger back: every cent account
 ## Stretch
 
 - Market suspend/reopen (needs a contract amendment — negotiate with the host first).
-- Per-account max-stake limits (responsible gambling hook — very Sportsbet).
+- Per-account max-stake limits (responsible gambling hook — an industry must-have).

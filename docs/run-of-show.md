@@ -1,6 +1,6 @@
 # Run of Show — Agent Arena: Road to the Final
 
-**Format:** one host, ~20 Sportsbet engineers watching, 3 hours.
+**Format:** one host, ~20 engineers from a betting company watching, 3 hours.
 **Thesis:** one engineer running a fleet of Claude Code sessions ships a squad's worth of
 enterprise-grade software — through real quality gates — in one sitting.
 
