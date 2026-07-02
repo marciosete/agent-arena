@@ -43,6 +43,21 @@ building. When the sim runs, they win and lose in public.
 - HTTP client in one thin module, tested with mocked fetch.
 - ≥80% coverage on everything you commit; zero lint warnings.
 
+## Definition of Done (the `/goal` evaluator judges these from what you SURFACE in the chat — run each check and paste its result before declaring done)
+
+- `npm test -w bots` exits 0 — paste the run summary
+- `npm run typecheck -w bots` clean · `npm run lint` zero warnings
+- Changed files ≥85% coverage — paste the coverage summary
+- Each strategy is a pure function with a named passing test (Sharp bets only with edge +
+  capped Kelly · Mug longshots · Steady flat 5% · Chaser doubles-after-loss)
+- A test proves the HTTP client degrades gracefully on connection-refused / 4xx / 5xx (mocked
+  fetch) — no crash, skip the round
+- The runner prints a league table and exits cleanly on SIGINT
+- Only `bots/` changed · `contracts/` untouched · no new dependencies · not pushed
+
+**Declaring done:** list each item above and paste the command + its result (or the name of the
+test that proves it). If you cannot meet an item, stop and report the blocker — do not loop.
+
 ## Demo moment
 
 Four terminals of bot commentary scrolling while the trader-ops leaderboard reorders live.

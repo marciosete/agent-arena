@@ -10,10 +10,24 @@ claude
 /goal @docs/specs/1-punter.md
 ```
 
-`/goal` sets the spec as the session's completion contract — it keeps working and self-verifies
-against the spec (running tests/lint/coverage) before it stops. CLAUDE.md auto-loads in every
-session and carries the shared rules, architecture, and quality bar; the spec carries the
-per-workstream detail and milestones. Nothing else to paste.
+`/goal` sets the spec as the session's completion contract — it keeps working across turns and
+a fast evaluator checks the condition after each turn before handing control back. CLAUDE.md
+auto-loads in every session (shared rules, architecture, quality bar); the spec carries the
+per-workstream detail, milestones, and a **Definition of Done**. Nothing else to paste.
+
+**Key nuance:** the `/goal` evaluator only reads **what's in the conversation** — it doesn't run
+commands or open files itself. That's why every spec's Definition of Done is written as things
+the session must _run and paste_ (test output, lint, coverage, build), and ends with "list each
+item and paste its result before declaring done." Point the goal at the spec and its DoD, e.g.:
+
+```text
+/goal Build apps/punter-web per docs/specs/1-punter.md until its Definition of Done holds and I
+have pasted the passing test/lint/coverage/build output for each item. Stay in apps/punter-web;
+do not push. Stop and report if blocked after ~20 turns.
+```
+
+(Or the short form `/goal @docs/specs/1-punter.md` — but the explicit condition above is more
+reliable for the evaluator, since it names the surfaced-evidence bar directly.)
 
 ## Order (launch top-to-bottom; they run in parallel)
 

@@ -51,6 +51,21 @@ on Vercel against the Render services.
   leaderboard ordering. ≥80% coverage on everything you commit; zero lint warnings.
 - No new dependencies — CSS grids and bars, not chart libraries.
 
+## Definition of Done (the `/goal` evaluator judges these from what you SURFACE in the chat — run each check and paste its result before declaring done)
+
+- `npm test -w apps/trader-ops` exits 0 — paste the run summary
+- `npm run typecheck -w apps/trader-ops` clean · `npm run lint` zero warnings
+- Changed files ≥85% coverage — paste the coverage summary
+- `npm run build -w apps/trader-ops` succeeds
+- Flags panel flips a flag via `PUT :4004/flags/:key` with the `x-admin-key` header (key from
+  a prompt, kept in localStorage) — proven by a test; 401 surfaced clearly
+- Exposure board (heat thresholds), leaderboard ordering, market monitor, and settlement feed
+  each render from their endpoint — proven by tests
+- Only `apps/trader-ops/` changed · `contracts/` untouched · no new dependencies · not pushed
+
+**Declaring done:** list each item above and paste the command + its result (or the name of the
+test that proves it). If you cannot meet an item, stop and report the blocker — do not loop.
+
 ## Demo moment
 
 Split screen with punter-web during the finale: punters cheer the bracket while trader-ops

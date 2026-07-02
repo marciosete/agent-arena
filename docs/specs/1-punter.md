@@ -59,6 +59,21 @@ Render services.
   bracket advancement rendering. ≥80% coverage on everything you commit; zero lint warnings.
 - No new dependencies — SVG by hand, CSS animations, native fetch.
 
+## Definition of Done (the `/goal` evaluator judges these from what you SURFACE in the chat — run each check and paste its result before declaring done)
+
+- `npm test -w apps/punter-web` exits 0 — paste the run summary
+- `npm run typecheck -w apps/punter-web` clean · `npm run lint` zero warnings
+- Changed files ≥85% coverage — paste the coverage summary
+- `npm run build -w apps/punter-web` succeeds
+- Each feature renders **only when its flag is on** (Markets, Bet Slip, My Bets, Bracket,
+  Confetti) — a Testing Library test proves the flag gating
+- The bet slip submits with a fresh idempotency key and recovers gracefully from a 409 —
+  proven by a test
+- Only `apps/punter-web/` changed · `contracts/` untouched · no new dependencies · not pushed
+
+**Declaring done:** list each item above and paste the command + its result (or the name of the
+test that proves it). If you cannot meet an item, stop and report the blocker — do not loop.
+
 ## Demo moment
 
 The finale: the simulator runs, and for two minutes the bracket eats itself alive — paths

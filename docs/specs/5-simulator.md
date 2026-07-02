@@ -51,6 +51,22 @@ in the header too (betting's settle endpoint should be guarded — coordinate wi
   with mocked fetch.
 - ≥85% coverage on everything you commit; zero lint warnings; no cross-workstream imports.
 
+## Definition of Done (the `/goal` evaluator judges these from what you SURFACE in the chat — run each check and paste its result before declaring done)
+
+- `npm test -w services/simulator` exits 0 — paste the run summary
+- `npm run typecheck -w services/simulator` clean · `npm run lint` zero warnings
+- Changed files ≥85% coverage — paste the coverage summary
+- A test proves **bracket advancement** puts each winner in the correct slot of the correct
+  next fixture, all the way to the final
+- A test proves result generation is deterministic under a fixed seed
+- `POST /play-next`, `POST /run`, `GET /state`, `POST /reset` all work; a test proves
+  `play-next` calls pricing `/reprice` then betting `/settle` (mocked fetch) and survives either
+  being down
+- Only `services/simulator/` changed · `contracts/` untouched · no new dependencies · not pushed
+
+**Declaring done:** list each item above and paste the command + its result (or the name of the
+test that proves it). If you cannot meet an item, stop and report the blocker — do not loop.
+
 ## Demo moment
 
 `curl -X POST :4003/run -d '{"intervalMs": 2000}' -H 'content-type: application/json'` and the
