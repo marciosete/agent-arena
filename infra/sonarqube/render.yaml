@@ -1,0 +1,38 @@
+databases:
+  - name: agent-arena-sonarqube-db
+    databaseName: sonarqube
+    user: sonarqube
+    plan: basic-256mb
+    postgresMajorVersion: '15'
+
+services:
+  - type: web
+    name: agent-arena-sonarqube
+    runtime: image
+    image:
+      url: docker.io/library/sonarqube:26.6.0.123539-community
+    plan: standard
+    region: oregon
+    healthCheckPath: /api/system/status
+    autoDeploy: false
+    disk:
+      name: sonarqube-data
+      mountPath: /opt/sonarqube/data
+      sizeGB: 10
+    envVars:
+      - key: SONAR_JDBC_URL
+        sync: false
+      - key: SONAR_JDBC_USERNAME
+        fromDatabase:
+          name: agent-arena-sonarqube-db
+          property: user
+      - key: SONAR_JDBC_PASSWORD
+        fromDatabase:
+          name: agent-arena-sonarqube-db
+          property: password
+      - key: SONAR_WEB_JAVAOPTS
+        value: -Xmx512m -Xms128m
+      - key: SONAR_CE_JAVAOPTS
+        value: -Xmx512m -Xms128m
+      - key: SONAR_SEARCH_JAVAOPTS
+        value: -Xmx512m -Xms512m

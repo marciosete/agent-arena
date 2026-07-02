@@ -12,6 +12,9 @@ services/*/generated/
 coverage/
 jscpd-report/
 
+# SonarQube scanner working dir
+.scannerwork/
+
 # Environment
 .env
 .env.local

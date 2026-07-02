@@ -1,0 +1,45 @@
+name: agent-arena-sonarqube
+
+# Pinned for reproducibility — anyone cloning gets the same versions.
+# SonarQube Community Build 26.6 (2026-06-03) + PostgreSQL 15.18.
+# Bump deliberately: check https://hub.docker.com/_/sonarqube for newer
+# `*-community` builds, then update the tag and `render.yaml` to match.
+
+services:
+  sonarqube:
+    image: sonarqube:26.6.0.123539-community
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '9000:9000'
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonarqube
+      SONAR_JDBC_USERNAME: sonarqube
+      SONAR_JDBC_PASSWORD: sonarqube
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    restart: unless-stopped
+
+  db:
+    image: postgres:15.18-alpine
+    environment:
+      POSTGRES_USER: sonarqube
+      POSTGRES_PASSWORD: sonarqube
+      POSTGRES_DB: sonarqube
+    volumes:
+      - sonarqube_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sonarqube -d sonarqube']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  sonarqube_db:
