@@ -33,10 +33,17 @@ export interface ApiFailure {
 
 export type ApiResult<T> = { ok: true; data: T } | ApiFailure;
 
+export const HTTP_UNAUTHORIZED = 401;
 export const HTTP_CONFLICT = 409;
 
+/** A wedged upstream must never stall the show loop — abort and move on. */
+export const REQUEST_TIMEOUT_MS = 5_000;
+
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  if (!(error instanceof Error)) return String(error);
+  // undici says only "fetch failed" — the useful part (ECONNREFUSED, DNS…) is the cause
+  const cause = error.cause instanceof Error ? error.cause.message : error.cause;
+  return cause ? `${error.message} (${String(cause)})` : error.message;
 }
 
 export async function requestJson<T>(
@@ -47,7 +54,7 @@ export async function requestJson<T>(
   const label = `${init.method ?? 'GET'} ${url}`;
   let response: Response;
   try {
-    response = await fetch(url, init);
+    response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), ...init });
   } catch (error) {
     return { ok: false, kind: 'network', message: `${label} unreachable: ${describe(error)}` };
   }

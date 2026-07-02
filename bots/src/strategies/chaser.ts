@@ -10,7 +10,13 @@ const EVENS = 2;
 export function lossStreak(history: Bet[]): number {
   const settled = history
     .filter((bet) => bet.status === 'won' || bet.status === 'lost')
-    .sort((a, b) => (a.settledAt ?? '').localeCompare(b.settledAt ?? ''));
+    .sort((a, b) => {
+      const byTime = (a.settledAt ?? '').localeCompare(b.settledAt ?? '');
+      if (byTime !== 0) return byTime;
+      // One settle call stamps every affected bet with the same settledAt;
+      // let a same-batch win sort last so it resets the streak.
+      return Number(a.status === 'won') - Number(b.status === 'won');
+    });
   let streak = 0;
   for (let i = settled.length - 1; i >= 0 && settled[i].status === 'lost'; i -= 1) {
     streak += 1;

@@ -15,6 +15,11 @@ export interface SimStateSource {
   getSimState(token: string): Promise<ApiResult<SimState>>;
 }
 
+/** The slice of process the SIGINT binding needs — injectable for tests. */
+export interface SigintSource {
+  once(event: 'SIGINT', listener: () => void): unknown;
+}
+
 export interface RunnerOptions {
   intervalMs: number;
   log: Logger;
@@ -28,6 +33,7 @@ export interface RunnerOptions {
 export class Runner {
   private timer: NodeJS.Timeout | null = null;
   private busy = false;
+  private current: Promise<void> | null = null;
   private round = 0;
   private championAnnounced = false;
 
@@ -55,6 +61,14 @@ export class Runner {
     }
   }
 
+  /** Stop ticking and wait for any in-flight round to finish printing. */
+  async shutdown(): Promise<void> {
+    this.stop();
+    if (this.current) {
+      await this.current.catch(() => undefined);
+    }
+  }
+
   leagueTable(): string {
     return formatLeagueTable(this.bots.map((bot) => bot.snapshot()));
   }
@@ -62,17 +76,24 @@ export class Runner {
   async playRound(): Promise<void> {
     if (this.busy) return;
     this.busy = true;
+    const round = this.runRound();
+    this.current = round;
     try {
-      this.round += 1;
-      this.options.log(`\n⚽ Round ${this.round}`);
-      for (const bot of this.bots) {
-        await bot.playRound();
-      }
-      await this.announceChampion();
-      this.options.log(this.leagueTable());
+      await round;
     } finally {
       this.busy = false;
+      this.current = null;
     }
+  }
+
+  private async runRound(): Promise<void> {
+    this.round += 1;
+    this.options.log(`\n⚽ Round ${this.round}`);
+    for (const bot of this.bots) {
+      await bot.playRound();
+    }
+    await this.announceChampion();
+    this.options.log(this.leagueTable());
   }
 
   /** Poll the (optional) simulator with any provisioned bot's token. */
@@ -88,18 +109,20 @@ export class Runner {
   }
 }
 
-interface SigintSource {
-  once(event: 'SIGINT', listener: () => void): unknown;
-}
-
 /**
- * Ctrl-C: stop the loop, print final standings, and let the event loop drain
- * for a clean zero-exit (no process.exit).
+ * Ctrl-C: stop the loop, let any in-flight round finish so its output lands
+ * BEFORE the final table, then print final standings. No process.exit — the
+ * drained event loop exits zero on its own.
  */
 export function bindSigint(runner: Runner, log: Logger, proc: SigintSource = process): void {
   proc.once('SIGINT', () => {
-    runner.stop();
-    log('\n👋 SIGINT — final standings:');
-    log(runner.leagueTable());
+    log('\n👋 SIGINT — wrapping up…');
+    runner
+      .shutdown()
+      .then(() => {
+        log('final standings:');
+        log(runner.leagueTable());
+      })
+      .catch(() => undefined);
   });
 }

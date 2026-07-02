@@ -7,6 +7,9 @@ import type { IntendedBet, Strategy } from './types';
 /** Never risk more than 10% of the bankroll on one price, however juicy. */
 export const SHARP_KELLY_CAP = 0.1;
 
+/** TEAMS is frozen seed data — build the name → elo join once, not per round. */
+const ELO_BY_NAME = new Map(TEAMS.map((team) => [team.name, team.elo]));
+
 interface Edge {
   pick: PricedSelection;
   probability: number;
@@ -19,14 +22,13 @@ interface Edge {
  * load-bearing convention from integration.md §3); Kelly staking, capped.
  */
 export const sharp: Strategy = (markets, bankroll, history) => {
-  const eloByName = new Map(TEAMS.map((team) => [team.name, team.elo]));
   let best: Edge | null = null;
 
   for (const market of biddableMarkets(markets, history)) {
     if (market.type !== 'MATCH_WINNER' || market.selections.length !== 2) continue;
     const [home, away] = market.selections;
-    const homeElo = eloByName.get(home.name);
-    const awayElo = eloByName.get(away.name);
+    const homeElo = ELO_BY_NAME.get(home.name);
+    const awayElo = ELO_BY_NAME.get(away.name);
     if (homeElo === undefined || awayElo === undefined) continue;
 
     const sides = [

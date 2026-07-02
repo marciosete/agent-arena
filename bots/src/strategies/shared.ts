@@ -26,12 +26,16 @@ export function allSelections(markets: Market[]): PricedSelection[] {
 }
 
 /**
- * Clamp a desired stake to what the wallet and the bet contract allow.
- * Returns 0 (no bet) when the affordable amount drops below MIN_STAKE.
+ * Clamp a desired stake to what the wallet and the bet contract allow,
+ * working in whole cents. The wallet is FLOORED to cents so float dust in a
+ * balance can never produce a stake the account cannot cover; below
+ * MIN_STAKE means no bet.
  */
 export function affordableStake(stake: number, bankroll: number): number {
-  const clamped = round2(Math.min(stake, bankroll, OPENING_BALANCE));
-  return clamped >= MIN_STAKE ? clamped : 0;
+  const stakeCents = Math.round(stake * 100);
+  const walletCents = Math.floor(bankroll * 100);
+  const cents = Math.min(stakeCents, walletCents, OPENING_BALANCE * 100);
+  return cents >= MIN_STAKE * 100 ? cents / 100 : 0;
 }
 
 export function intend(pick: PricedSelection, stake: number, reason: string): IntendedBet {
