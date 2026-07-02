@@ -63,6 +63,10 @@ jobs:
     name: Secret Scan
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Dependabot runs carry a read-only token that gitleaks-action can't use
+    # (403 Resource not accessible). Bot bumps don't need secret scanning;
+    # human PRs and every push to main still get scanned.
+    if: github.actor != 'dependabot[bot]'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
