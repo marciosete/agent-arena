@@ -33,6 +33,15 @@ services:
         value: '22'
       - key: BETTING_DATABASE_URL
         sync: false
+      # Auth (pre-built): passwordless email + OTP → session tokens
+      - key: BETTING_SESSION_SECRET # HMAC key for signing session tokens
+        sync: false
+      - key: BETTING_ADMIN_KEY # guards bot provisioning + settlement
+        sync: false
+      - key: RESEND_API_KEY # transactional email (OTP codes)
+        sync: false
+      - key: RESEND_FROM # verified sender, e.g. hello@mail.hackathon.beer
+        sync: false
 
   - type: web
     name: arena-simulator

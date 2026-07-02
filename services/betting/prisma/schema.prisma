@@ -16,3 +16,30 @@ datasource db {
   provider = "postgresql"
   url      = env("BETTING_DATABASE_URL")
 }
+
+// Punter/bot wallet. Humans authenticate passwordlessly by email + OTP and are
+// find-or-created on first successful verify; bots are provisioned by the admin
+// key and have no inbox (email = null).
+model Account {
+  id        String   @id @default(uuid())
+  email     String?  @unique
+  name      String
+  balance   Float    @default(10000)
+  isBot     Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// One-time login code. We store only the SHA-256 hash, never the code itself.
+// A row is single-use (consumedAt) and short-lived (expiresAt); attempts caps
+// brute force before expiry.
+model Otp {
+  id         String    @id @default(uuid())
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
+}
