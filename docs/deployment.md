@@ -24,9 +24,10 @@ deploy jobs fan in on the same seven parallel gate lanes (lint/format, typecheck
 architecture+duplication, test+build, yaml, SonarQube, secret scan); CI is the single control
 plane for all six services.
 
-**Domains** (`hackathon.beer`, DNS on Vercel nameservers): `www` → punter-web (apex 308s to
-www) · `trader` → trader-ops · `pricing` / `betting` / `simulator` / `flags` → CNAMEs to the
-Render services. The Vercel env vars point at these stable subdomains.
+**Domains** (`hackathon.beer`, DNS managed at the registrar — records point `www`/`trader`/apex
+at Vercel and the service subdomains at Render): `www` → punter-web (apex 308s to www) ·
+`trader` → trader-ops · `pricing` / `betting` / `simulator` / `flags` → CNAMEs to the Render
+services. The Vercel env vars point at these stable subdomains.
 
 ## Releasing a feature (the money moment)
 
