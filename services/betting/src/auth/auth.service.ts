@@ -52,10 +52,11 @@ export class AuthService {
 
   /**
    * Verify a code and mint a session. On success the account is found-or-created
-   * by email. Failures are deliberately indistinguishable (same exception) to
-   * avoid leaking whether an address or a live code exists.
+   * by email; `name` seeds the nickname of a brand-new account (ignored when the
+   * account already exists). Failures are deliberately indistinguishable (same
+   * exception) to avoid leaking whether an address or a live code exists.
    */
-  async verify(email: string, code: string): Promise<AuthResponse> {
+  async verify(email: string, code: string, name?: string): Promise<AuthResponse> {
     const otp = await this.prisma.otp.findFirst({
       where: { email, consumedAt: null, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },
@@ -79,7 +80,7 @@ export class AuthService {
       data: { consumedAt: new Date() },
     });
 
-    const account = await this.findOrCreateByEmail(email);
+    const account = await this.findOrCreateByEmail(email, name);
     return this.toAuthResponse(account);
   }
 
@@ -91,15 +92,20 @@ export class AuthService {
     return this.toAuthResponse(account);
   }
 
-  private async findOrCreateByEmail(email: string): Promise<AccountRecord> {
+  private async findOrCreateByEmail(email: string, name?: string): Promise<AccountRecord> {
     const existing = await this.prisma.account.findUnique({ where: { email } });
     if (existing) {
       return existing;
     }
+    const nickname = name?.trim().slice(0, MAX_NAME_LENGTH);
     return this.prisma.account.create({
       data: {
         email,
-        name: email.split('@')[0].slice(0, MAX_NAME_LENGTH),
+        // Prefer the punter's chosen nickname; fall back to the email local-part.
+        name:
+          nickname && nickname.length > 0
+            ? nickname
+            : email.split('@')[0].slice(0, MAX_NAME_LENGTH),
         isBot: false,
         balance: OPENING_BALANCE,
       },

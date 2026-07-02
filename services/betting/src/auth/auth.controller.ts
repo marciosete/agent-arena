@@ -33,7 +33,7 @@ export class AuthController {
   verify(
     @Body(new ZodValidationPipe(VerifyOtpRequestSchema)) body: VerifyOtpRequest
   ): Promise<AuthResponse> {
-    return this.auth.verify(body.email, body.code);
+    return this.auth.verify(body.email, body.code, body.name);
   }
 
   /** Bot provisioning — bots have no inbox, so they're created by admin key. */

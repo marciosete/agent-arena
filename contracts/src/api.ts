@@ -82,6 +82,9 @@ export const VerifyOtpRequestSchema = z.object({
   email: z.string().email(),
   /** the 6-digit code from the email */
   code: z.string().regex(/^\d{6}$/),
+  /** nickname for a NEW account — shown on the leaderboard and in the UI; ignored if the
+   * account already exists (existing nickname is kept). */
+  name: z.string().min(1).max(50).optional(),
 });
 export type VerifyOtpRequest = z.infer<typeof VerifyOtpRequestSchema>;
 

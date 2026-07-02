@@ -92,7 +92,23 @@ describe('AuthController (e2e)', () => {
         .send({ email: 'punter@example.com', code: '123456' })
         .expect(201);
       expect(AuthResponseSchema.parse(response.body).account.id).toBe(AUTH_RESPONSE.account.id);
-      expect(auth.verify).toHaveBeenCalledWith('punter@example.com', '123456');
+      expect(auth.verify).toHaveBeenCalledWith('punter@example.com', '123456', undefined);
+    });
+
+    it('forwards an optional nickname to the service', async () => {
+      await request(app.getHttpServer())
+        .post('/auth/verify')
+        .send({ email: 'punter@example.com', code: '123456', name: 'Griddy' })
+        .expect(201);
+      expect(auth.verify).toHaveBeenCalledWith('punter@example.com', '123456', 'Griddy');
+    });
+
+    it('rejects a nickname longer than 50 characters with 400', async () => {
+      await request(app.getHttpServer())
+        .post('/auth/verify')
+        .send({ email: 'punter@example.com', code: '123456', name: 'z'.repeat(51) })
+        .expect(400);
+      expect(auth.verify).not.toHaveBeenCalled();
     });
 
     it('maps an UnauthorizedException to 401', async () => {

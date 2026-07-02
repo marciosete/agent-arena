@@ -116,7 +116,7 @@ describe('AuthService', () => {
       expect(verifyToken(result.token)).toBe(ACCOUNT_ID);
     });
 
-    it('creates a new account from the email local-part when none exists', async () => {
+    it('creates a new account from the email local-part when none exists (no nickname)', async () => {
       prisma.otp.findFirst.mockResolvedValue(liveOtp());
       prisma.otp.update.mockResolvedValue(liveOtp({ consumedAt: new Date() }));
       prisma.account.findUnique.mockResolvedValue(null);
@@ -130,6 +130,51 @@ describe('AuthService', () => {
       expect(data.name).toBe('punter');
       expect(data.isBot).toBe(false);
       expect(data.balance).toBe(OPENING_BALANCE);
+    });
+
+    it('uses the provided nickname (trimmed) for a brand-new account', async () => {
+      prisma.otp.findFirst.mockResolvedValue(liveOtp());
+      prisma.otp.update.mockResolvedValue(liveOtp({ consumedAt: new Date() }));
+      prisma.account.findUnique.mockResolvedValue(null);
+      prisma.account.create.mockResolvedValue(accountRecord({ name: 'Griddy' }));
+
+      await service.verify(EMAIL, CODE, '  Griddy  ');
+
+      const data = prisma.account.create.mock.calls[0][0].data;
+      expect(data.name).toBe('Griddy');
+    });
+
+    it('truncates a very long nickname to 50 characters', async () => {
+      prisma.otp.findFirst.mockResolvedValue(liveOtp());
+      prisma.otp.update.mockResolvedValue(liveOtp({ consumedAt: new Date() }));
+      prisma.account.findUnique.mockResolvedValue(null);
+      prisma.account.create.mockResolvedValue(accountRecord({ name: 'z'.repeat(50) }));
+
+      await service.verify(EMAIL, CODE, 'z'.repeat(80));
+
+      expect(prisma.account.create.mock.calls[0][0].data.name).toHaveLength(50);
+    });
+
+    it('falls back to the email local-part when the nickname is only whitespace', async () => {
+      prisma.otp.findFirst.mockResolvedValue(liveOtp());
+      prisma.otp.update.mockResolvedValue(liveOtp({ consumedAt: new Date() }));
+      prisma.account.findUnique.mockResolvedValue(null);
+      prisma.account.create.mockResolvedValue(accountRecord({ name: 'punter' }));
+
+      await service.verify(EMAIL, CODE, '   ');
+
+      expect(prisma.account.create.mock.calls[0][0].data.name).toBe('punter');
+    });
+
+    it('keeps the existing name and ignores the nickname when the account already exists', async () => {
+      prisma.otp.findFirst.mockResolvedValue(liveOtp());
+      prisma.otp.update.mockResolvedValue(liveOtp({ consumedAt: new Date() }));
+      prisma.account.findUnique.mockResolvedValue(accountRecord({ name: 'original' }));
+
+      const result = await service.verify(EMAIL, CODE, 'IgnoreMe');
+
+      expect(prisma.account.create).not.toHaveBeenCalled();
+      expect(result.account.name).toBe('original');
     });
 
     it('truncates a very long local-part to 50 characters', async () => {

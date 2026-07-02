@@ -1,18 +1,33 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
- * Stateless session tokens: `base64url(payloadJson).base64url(hmacSha256)`.
- * The signature covers the encoded payload, so any tampering (including a
- * forged expiry) invalidates the token. Pure + dependency-free so it can be
- * exhaustively unit-tested and reused by the Bearer guard.
+ * Stateless session tokens as standard HS256 JSON Web Tokens:
+ * `base64url(header).base64url(payload).base64url(signature)`.
+ *
+ * - header:  `{ "alg": "HS256", "typ": "JWT" }`
+ * - payload: `{ sub, iat, exp }` — `exp`/`iat` are seconds since epoch (JWT spec)
+ * - signature: HMAC-SHA256 over `base64url(header).base64url(payload)`
+ *
+ * The signature covers header + payload, so any tampering (including a forged
+ * expiry) invalidates the token. Dependency-free so it can be exhaustively
+ * unit-tested and reused by the Bearer guard — and any standard JWT library can
+ * verify it.
  */
 
-const TOKEN_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const TOKEN_TTL_SECONDS = 12 * 60 * 60; // 12 hours
+const JWT_HEADER = { alg: 'HS256', typ: 'JWT' } as const;
 
 interface TokenPayload {
-  accountId: string;
-  /** absolute expiry, ms since epoch */
+  /** subject: the account id */
+  sub: string;
+  /** issued-at, seconds since epoch */
+  iat: number;
+  /** expiry, seconds since epoch */
   exp: number;
+}
+
+function nowSeconds(): number {
+  return Math.floor(Date.now() / 1000);
 }
 
 /**
@@ -23,47 +38,66 @@ function sessionSecret(): string {
   return process.env.BETTING_SESSION_SECRET ?? 'dev-session-secret';
 }
 
-function sign(encodedPayload: string): string {
-  return createHmac('sha256', sessionSecret()).update(encodedPayload).digest('base64url');
+function encodeSegment(value: unknown): string {
+  return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+/** Sign the `base64url(header).base64url(payload)` signing input. */
+function sign(signingInput: string): string {
+  return createHmac('sha256', sessionSecret()).update(signingInput).digest('base64url');
 }
 
 export function signToken(accountId: string): string {
-  const payload: TokenPayload = { accountId, exp: Date.now() + TOKEN_TTL_MS };
-  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  return `${encodedPayload}.${sign(encodedPayload)}`;
+  const issuedAt = nowSeconds();
+  const payload: TokenPayload = {
+    sub: accountId,
+    iat: issuedAt,
+    exp: issuedAt + TOKEN_TTL_SECONDS,
+  };
+  const signingInput = `${encodeSegment(JWT_HEADER)}.${encodeSegment(payload)}`;
+  return `${signingInput}.${sign(signingInput)}`;
 }
 
 /**
- * Returns the accountId when the signature is valid AND the token is unexpired,
- * otherwise null. Never throws — malformed input is just an invalid token.
+ * Returns the `sub` (account id) when the signature is valid AND the token is
+ * unexpired, otherwise null. Never throws — malformed input is just an invalid
+ * token.
  */
 export function verifyToken(token: string): string | null {
   try {
     const parts = token.split('.');
-    if (parts.length !== 2) {
+    if (parts.length !== 3) {
       return null;
     }
-    const [encodedPayload, providedSignature] = parts;
-    if (!encodedPayload || !providedSignature) {
+    const [encodedHeader, encodedPayload, providedSignature] = parts;
+    if (!encodedHeader || !encodedPayload || !providedSignature) {
       return null;
     }
 
-    const expected = Buffer.from(sign(encodedPayload));
+    const expected = Buffer.from(sign(`${encodedHeader}.${encodedPayload}`));
     const provided = Buffer.from(providedSignature);
     if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+      return null;
+    }
+
+    const header = JSON.parse(Buffer.from(encodedHeader, 'base64url').toString('utf8')) as Record<
+      string,
+      unknown
+    >;
+    if (header.alg !== JWT_HEADER.alg || header.typ !== JWT_HEADER.typ) {
       return null;
     }
 
     const payload = JSON.parse(
       Buffer.from(encodedPayload, 'base64url').toString('utf8')
     ) as TokenPayload;
-    if (typeof payload.accountId !== 'string' || typeof payload.exp !== 'number') {
+    if (typeof payload.sub !== 'string' || typeof payload.exp !== 'number') {
       return null;
     }
-    if (Date.now() >= payload.exp) {
+    if (nowSeconds() >= payload.exp) {
       return null;
     }
-    return payload.accountId;
+    return payload.sub;
   } catch {
     return null;
   }
