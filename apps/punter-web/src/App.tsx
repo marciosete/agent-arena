@@ -101,7 +101,7 @@ function useServiceStatuses(): Record<ServiceKey, ServiceStatus> {
   return statuses;
 }
 
-function Nav({ flags }: { flags: FeatureFlag[] }) {
+function Nav({ flags }: Readonly<{ flags: FeatureFlag[] }>) {
   const enabled = new Set(flags.filter((flag) => flag.enabled).map((flag) => flag.key));
   const items = NAV_ITEMS.filter((item) => enabled.has(item.flag));
   if (items.length === 0) {
@@ -151,5 +151,5 @@ function StatusPage() {
 }
 
 export default function App() {
-  return window.location.pathname === '/status' ? <StatusPage /> : <HomePage />;
+  return globalThis.location.pathname === '/status' ? <StatusPage /> : <HomePage />;
 }
