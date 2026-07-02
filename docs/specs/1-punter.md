@@ -1,6 +1,5 @@
-> **Kickoff — session 1.** From a repo-root session: `/goal @docs/specs/1-punter.md`.
-> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
-> Post a one-line progress update as you finish each milestone.
+> **Kickoff — session 1.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
+> condition. CLAUDE.md auto-loads (shared rules + universal Definition of Done).
 
 # Workstream: Punter Web
 
@@ -59,20 +58,15 @@ Render services.
   bracket advancement rendering. ≥80% coverage on everything you commit; zero lint warnings.
 - No new dependencies — SVG by hand, CSS animations, native fetch.
 
-## Definition of Done (the `/goal` evaluator judges these from what you SURFACE in the chat — run each check and paste its result before declaring done)
+## Definition of Done
 
-- `npm test -w apps/punter-web` exits 0 — paste the run summary
-- `npm run typecheck -w apps/punter-web` clean · `npm run lint` zero warnings
-- Changed files ≥85% coverage — paste the coverage summary
-- `npm run build -w apps/punter-web` succeeds
+Meet the **universal gates in `CLAUDE.md`** (run + paste the evidence: tests, typecheck, lint,
+≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus prove
+these — paste the name of the test for each:
+
 - Each feature renders **only when its flag is on** (Markets, Bet Slip, My Bets, Bracket,
   Confetti) — a Testing Library test proves the flag gating
-- The bet slip submits with a fresh idempotency key and recovers gracefully from a 409 —
-  proven by a test
-- Only `apps/punter-web/` changed · `contracts/` untouched · no new dependencies · not pushed
-
-**Declaring done:** list each item above and paste the command + its result (or the name of the
-test that proves it). If you cannot meet an item, stop and report the blocker — do not loop.
+- The bet slip submits with a fresh idempotency key and recovers gracefully from a 409
 
 ## Demo moment
 

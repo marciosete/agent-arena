@@ -1,6 +1,5 @@
-> **Kickoff — session 6.** From a repo-root session: `/goal @docs/specs/6-bots.md`.
-> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
-> Post a one-line progress update as you finish each milestone.
+> **Kickoff — session 6.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
+> condition. CLAUDE.md auto-loads (shared rules + universal Definition of Done).
 
 # Workstream: Bots
 
@@ -43,20 +42,17 @@ building. When the sim runs, they win and lose in public.
 - HTTP client in one thin module, tested with mocked fetch.
 - ≥80% coverage on everything you commit; zero lint warnings.
 
-## Definition of Done (the `/goal` evaluator judges these from what you SURFACE in the chat — run each check and paste its result before declaring done)
+## Definition of Done
 
-- `npm test -w bots` exits 0 — paste the run summary
-- `npm run typecheck -w bots` clean · `npm run lint` zero warnings
-- Changed files ≥85% coverage — paste the coverage summary
-- Each strategy is a pure function with a named passing test (Sharp bets only with edge +
-  capped Kelly · Mug longshots · Steady flat 5% · Chaser doubles-after-loss)
-- A test proves the HTTP client degrades gracefully on connection-refused / 4xx / 5xx (mocked
-  fetch) — no crash, skip the round
+Meet the **universal gates in `CLAUDE.md`** (run + paste the evidence: tests, typecheck, lint,
+≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus prove
+these — paste the name of the test for each:
+
+- Each strategy is a pure function with a named test (Sharp bets only with edge + capped Kelly ·
+  Mug longshots · Steady flat 5% · Chaser doubles-after-loss)
+- The HTTP client degrades gracefully on connection-refused / 4xx / 5xx (mocked fetch) — no
+  crash, skip the round
 - The runner prints a league table and exits cleanly on SIGINT
-- Only `bots/` changed · `contracts/` untouched · no new dependencies · not pushed
-
-**Declaring done:** list each item above and paste the command + its result (or the name of the
-test that proves it). If you cannot meet an item, stop and report the blocker — do not loop.
 
 ## Demo moment
 

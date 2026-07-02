@@ -1,6 +1,5 @@
-> **Kickoff — session 2.** From a repo-root session: `/goal @docs/specs/2-trader.md`.
-> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
-> Post a one-line progress update as you finish each milestone.
+> **Kickoff — session 2.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
+> condition. CLAUDE.md auto-loads (shared rules + universal Definition of Done).
 
 # Workstream: Trader Ops
 
@@ -51,20 +50,16 @@ on Vercel against the Render services.
   leaderboard ordering. ≥80% coverage on everything you commit; zero lint warnings.
 - No new dependencies — CSS grids and bars, not chart libraries.
 
-## Definition of Done (the `/goal` evaluator judges these from what you SURFACE in the chat — run each check and paste its result before declaring done)
+## Definition of Done
 
-- `npm test -w apps/trader-ops` exits 0 — paste the run summary
-- `npm run typecheck -w apps/trader-ops` clean · `npm run lint` zero warnings
-- Changed files ≥85% coverage — paste the coverage summary
-- `npm run build -w apps/trader-ops` succeeds
-- Flags panel flips a flag via `PUT :4004/flags/:key` with the `x-admin-key` header (key from
-  a prompt, kept in localStorage) — proven by a test; 401 surfaced clearly
+Meet the **universal gates in `CLAUDE.md`** (run + paste the evidence: tests, typecheck, lint,
+≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus prove
+these — paste the name of the test for each:
+
+- Flags panel flips a flag via `PUT :4004/flags/:key` with the `x-admin-key` header (key from a
+  prompt, kept in localStorage); 401 surfaced clearly
 - Exposure board (heat thresholds), leaderboard ordering, market monitor, and settlement feed
-  each render from their endpoint — proven by tests
-- Only `apps/trader-ops/` changed · `contracts/` untouched · no new dependencies · not pushed
-
-**Declaring done:** list each item above and paste the command + its result (or the name of the
-test that proves it). If you cannot meet an item, stop and report the blocker — do not loop.
+  each render from their endpoint
 
 ## Demo moment
 

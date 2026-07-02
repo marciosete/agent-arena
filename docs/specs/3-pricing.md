@@ -1,6 +1,6 @@
-> **Kickoff — session 3.** From a repo-root session: `/goal @docs/specs/3-pricing.md`.
-> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
-> Start in plan mode and get your model approved. Post a one-line progress update per milestone.
+> **Kickoff — session 3.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
+> condition. CLAUDE.md auto-loads (shared rules + universal Definition of Done). Start in plan
+> mode and get your model approved first.
 
 # Workstream: Pricing Engine
 
@@ -55,21 +55,18 @@ contracts `FIXTURES` (idempotent upserts — restarts must not duplicate markets
 - Zod-validate inbound bodies; 400 + helpful message on garbage.
 - ≥85% coverage on everything you commit; zero lint warnings; no cross-workstream imports.
 
-## Definition of Done (the `/goal` evaluator judges these from what you SURFACE in the chat — run each check and paste its result before declaring done)
+## Definition of Done
 
-- `npm test -w services/pricing` exits 0 — paste the run summary
-- `npm run typecheck -w services/pricing` clean · `npm run lint` zero warnings
-- Changed files ≥85% coverage — paste the coverage summary
-- A test proves `GET /markets`, `GET /markets/:fixtureId`, and `GET /outright` return payloads
-  that `MarketSchema.parse` accepts (paste the passing test name)
-- A test proves `POST /reprice` advances the bracket and re-prices affected markets
-- A test proves the Monte Carlo outright is deterministic under a fixed seed
+Meet the **universal gates in `CLAUDE.md`** (run + paste the evidence: tests, typecheck, lint,
+≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus prove
+these — paste the name of the test for each:
+
+- `GET /markets`, `GET /markets/:fixtureId`, `GET /outright` return payloads that
+  `MarketSchema.parse` accepts
+- `POST /reprice` advances the bracket and re-prices affected markets
+- The Monte Carlo outright is deterministic under a fixed seed
 - Prisma migration applied (`npx prisma migrate status` shown); domain maths in pure modules
   with `PrismaService` mocked
-- Only `services/pricing/` changed · `contracts/` untouched · no new dependencies · not pushed
-
-**Declaring done:** list each item above and paste the command + its result (or the name of the
-test that proves it). If you cannot meet an item, stop and report the blocker — do not loop.
 
 ## Demo moment
 

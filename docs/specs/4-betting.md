@@ -1,6 +1,6 @@
-> **Kickoff — session 4.** From a repo-root session: `/goal @docs/specs/4-betting.md`.
-> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
-> Work strictly test-first — money moves here. Post a one-line progress update per milestone.
+> **Kickoff — session 4.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
+> condition. CLAUDE.md auto-loads (shared rules + universal Definition of Done). Work strictly
+> test-first — money moves here.
 
 # Workstream: Betting Core
 
@@ -65,21 +65,17 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
 - Zod-validate everything inbound (a ZodValidationPipe is idiomatic). Meaningful 400/404/409s.
 - ≥85% coverage on everything you commit; zero lint warnings; no cross-workstream imports.
 
-## Definition of Done (the `/goal` evaluator judges these from what you SURFACE in the chat — run each check and paste its result before declaring done)
+## Definition of Done
 
-- `npm test -w services/betting` exits 0 — paste the run summary
-- `npm run typecheck -w services/betting` clean · `npm run lint` zero warnings
-- Changed files ≥85% coverage — paste the coverage summary
-- A named passing test for each money rule: opens at 10,000 · rejects stake > balance ·
-  409 when price moved > 5% · **replayed idempotency key returns the original bet, no double
-  debit** · wallet debit + bet + ledger in one `$transaction` · settle-twice is a no-op ·
-  `/settle` rejects a missing/wrong `x-admin-key`
-- A test proves the exposure report's max-liability maths
+Meet the **universal gates in `CLAUDE.md`** (run + paste the evidence: tests, typecheck, lint,
+≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus a named
+passing test for each — paste the test names:
+
+- opens at 10,000 · rejects stake > balance · 409 when price moved > 5% · **replayed
+  idempotency key returns the original bet, no double debit** · wallet debit + bet + ledger in
+  one `$transaction` · settle-twice is a no-op · `/settle` rejects a missing/wrong `x-admin-key`
+- the exposure report's max-liability maths
 - Prisma migration applied (`npx prisma migrate status` shown)
-- Only `services/betting/` changed · `contracts/` untouched · no new dependencies · not pushed
-
-**Declaring done:** list each item above and paste the command + its result (or the name of the
-test that proves it). If you cannot meet an item, stop and report the blocker — do not loop.
 
 ## Demo moment
 
