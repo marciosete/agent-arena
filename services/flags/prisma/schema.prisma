@@ -1,0 +1,19 @@
+// Feature-flag store. Flags are data, not code: flipping one changes what is
+// RELEASED without changing what is DEPLOYED.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("FLAGS_DATABASE_URL")
+}
+
+model FeatureFlag {
+  key         String   @id
+  enabled     Boolean  @default(false)
+  description String
+  updatedAt   DateTime @updatedAt
+}

@@ -17,7 +17,8 @@
     "**/src/app.module.ts",
     "**/docs/**",
     "**/.husky/**",
-    "**/jscpd-report/**"
+    "**/jscpd-report/**",
+    "**/generated/**"
   ],
   "format": ["typescript", "tsx", "javascript"],
   "minLines": 5,

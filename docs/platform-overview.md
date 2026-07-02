@@ -75,19 +75,20 @@
 
 ### Shared foundation (root)
 
-| Layer                  | Choice                                                                                                                            |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Runtime / package mgmt | Node 22, npm workspaces (single lockfile, hoisted deps)                                                                           |
-| Language               | TypeScript 5.9, `strict` everywhere                                                                                               |
-| Backend framework      | **NestJS 11** — modules, DI, controllers/providers, `@nestjs/testing`                                                             |
-| Database               | **Postgres via Prisma 6** on Neon (serverless), env-driven connection strings per service                                         |
-| Contracts & validation | zod 3 schemas in `@arena/contracts` — types + runtime validation + seed data (compiled package: CJS for Nest, TS source for Vite) |
-| Testing                | Vitest 3 + V8 coverage in every workspace (SWC transform for Nest decorators); supertest for HTTP                                 |
-| Lint/format            | ESLint 9 flat config (typescript-eslint, **sonarjs**, **security**, react-hooks) + Prettier 3, zero-warnings policy               |
-| Architecture gate      | **dependency-cruiser** — workstream isolation enforced at commit time                                                             |
-| Quality gates          | husky 9 + lint-staged 16, gitleaks (secrets), shellcheck, yamllint, jscpd (duplication), npm audit, OSV-Scanner                   |
-| CI                     | GitHub Actions: quality, secret-scan, security-audit, license-compliance, **Dependabot** (CodeQL requires GHAS on private repos)  |
-| Dev orchestration      | concurrently (`npm run dev` = all five processes, colour-coded)                                                                   |
+| Layer                  | Choice                                                                                                                                                |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Runtime / package mgmt | Node 22, npm workspaces (single lockfile, hoisted deps)                                                                                               |
+| Language               | TypeScript 5.9, `strict` everywhere                                                                                                                   |
+| Backend framework      | **NestJS 11** — modules, DI, controllers/providers, `@nestjs/testing`                                                                                 |
+| Database               | **Postgres via Prisma 6** on Neon (serverless), env-driven connection strings per service                                                             |
+| Contracts & validation | zod 3 schemas in `@arena/contracts` — types + runtime validation + seed data (compiled package: CJS for Nest, TS source for Vite)                     |
+| Testing                | Vitest 3 + V8 coverage in every workspace (SWC transform for Nest decorators); supertest for HTTP                                                     |
+| Lint/format            | ESLint 9 flat config (typescript-eslint, **sonarjs**, **security**, react-hooks) + Prettier 3, zero-warnings policy                                   |
+| Architecture gate      | **dependency-cruiser** — workstream isolation enforced at commit time                                                                                 |
+| Quality gates          | husky 9 + lint-staged 16, gitleaks (secrets), shellcheck, yamllint, jscpd (duplication), npm audit, OSV-Scanner                                       |
+| CI                     | GitHub Actions: quality, secret-scan, security-audit, license-compliance, **Dependabot** (CodeQL requires GHAS on private repos)                      |
+| Continuous delivery    | Render (services, `render.yaml`) + Vercel (apps) auto-deploy from main; **feature flags** (own service, Postgres-backed) decouple release from deploy |
+| Dev orchestration      | concurrently (`npm run dev` = all six processes, colour-coded)                                                                                        |
 
 ### Per workspace
 
@@ -97,6 +98,7 @@
 | `services/pricing`   | NestJS (`nest start --watch`)              | @nestjs/\*, @prisma/client, @arena/contracts                            | node, @nestjs/testing + supertest |
 | `services/betting`   | NestJS (`nest start --watch`)              | @nestjs/\*, @prisma/client, @arena/contracts                            | node, @nestjs/testing + supertest |
 | `services/simulator` | NestJS (`nest start --watch`)              | @nestjs/\*, @arena/contracts (no DB — in-memory by design)              | node, @nestjs/testing + supertest |
+| `services/flags`     | NestJS — **pre-built platform infra**      | @nestjs/\*, @prisma/client, @arena/contracts                            | node, @nestjs/testing + supertest |
 | `apps/punter-web`    | Vite 7 dev server                          | React 19, @arena/contracts; SVG/CSS by hand — no UI/chart libs          | jsdom + Testing Library           |
 | `apps/trader-ops`    | Vite 7 dev server                          | React 19, @arena/contracts; CSS grids/bars — no chart libs              | jsdom + Testing Library           |
 | `bots`               | tsx CLI loop                               | @arena/contracts, native fetch, @anthropic-ai/sdk (Pundit stretch only) | node, mocked fetch                |

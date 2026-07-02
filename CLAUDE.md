@@ -23,14 +23,21 @@ workstream. You are one of those sessions. The audience is watching. Ship like a
 
 ## Architecture
 
-| Workstream | Directory             | Port | Persistence                                                 | Job                                                |
-| ---------- | --------------------- | ---- | ----------------------------------------------------------- | -------------------------------------------------- |
-| pricing    | `services/pricing/`   | 4001 | Postgres (Prisma)                                           | Model probabilities, publish markets with odds     |
-| betting    | `services/betting/`   | 4002 | Postgres (Prisma)                                           | Accounts, wallets, bets, settlement, exposure      |
-| simulator  | `services/simulator/` | 4003 | in-memory (by design — ephemeral state with a reset button) | Fast-forward the tournament, emit results          |
-| punter-web | `apps/punter-web/`    | 5173 | —                                                           | Customer sportsbook UI + bracket visualization     |
-| trader-ops | `apps/trader-ops/`    | 5174 | —                                                           | Internal liability/exposure console                |
-| bots       | `bots/`               | —    | —                                                           | Autonomous punter agents betting into the platform |
+| Workstream | Directory             | Port | Persistence                                                 | Job                                                                                                |
+| ---------- | --------------------- | ---- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| pricing    | `services/pricing/`   | 4001 | Postgres (Prisma)                                           | Model probabilities, publish markets with odds                                                     |
+| betting    | `services/betting/`   | 4002 | Postgres (Prisma)                                           | Accounts, wallets, bets, settlement, exposure                                                      |
+| simulator  | `services/simulator/` | 4003 | in-memory (by design — ephemeral state with a reset button) | Fast-forward the tournament, emit results                                                          |
+| _flags_    | `services/flags/`     | 4004 | Postgres (Prisma)                                           | **Platform infrastructure, pre-built — READ-ONLY like contracts.** Feature flags: release ≠ deploy |
+| punter-web | `apps/punter-web/`    | 5173 | —                                                           | Customer sportsbook UI + bracket visualization                                                     |
+| trader-ops | `apps/trader-ops/`    | 5174 | —                                                           | Internal liability/exposure console                                                                |
+| bots       | `bots/`               | —    | —                                                           | Autonomous punter agents betting into the platform                                                 |
+
+**Continuous delivery:** main auto-deploys to production (Render + Vercel) after CI. Every
+feature ships **dark** behind a flag from the flags service and is released by flipping it —
+see `docs/deployment.md`. Client URLs resolve env-first with localhost fallback:
+`import.meta.env.VITE_<SERVICE>_URL ?? BASE_URLS.<service>` in apps,
+`process.env.<SERVICE>_URL ?? BASE_URLS.<service>` in bots.
 
 Services are **NestJS 11** (modules, DI, controllers, providers — canonical patterns).
 Persisted services use **Prisma** on Postgres (Neon); you design the models in

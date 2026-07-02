@@ -16,6 +16,7 @@ export default tseslint.config(
       '**/jscpd-report/**',
       '**/*.d.ts',
       '**/.vite/**',
+      '**/generated/**',
     ],
   },
   js.configs.recommended,

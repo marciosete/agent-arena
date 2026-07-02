@@ -27,8 +27,18 @@ radiating from a glowing golden trophy. This is the screen everyone photographs.
    on nodes, golden trophy glow in the middle. Fed by `FIXTURES` + `GET :4003/state`: played
    fixtures show scores, winner paths light up golden toward the centre, eliminated teams dim.
    During `POST /run` it must visibly animate as results land (poll ~1s while a run is active).
-6. Keep the service-health footer from the scaffold somewhere visible — it tells the story of
-   the platform coming alive.
+6. **Everything ships dark: feature flags gate every surface.** Poll `GET :4004/flags`
+   (~3s) and render each feature only when its flag is on: `punter-markets` → markets page,
+   `punter-bet-slip` → bet slip, `punter-my-bets` → my bets, `punter-bracket` → the bracket,
+   `punter-confetti` → confetti. Dark means _absent_ — no teasers, no disabled stubs. A flag
+   flip must reveal the feature within seconds, no reload. This is how the host releases
+   features live during the show.
+7. Keep the service-health + flag strip from the scaffold somewhere visible — it tells the
+   story of the platform coming alive.
+
+All service URLs must resolve as `import.meta.env.VITE_<SERVICE>_URL ?? BASE_URLS.<service>`
+(see the scaffold's `App.tsx`) — the same build runs on localhost and on Vercel against the
+Render services.
 
 ## Enterprise bar
 

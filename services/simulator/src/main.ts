@@ -6,7 +6,7 @@ import { AppModule } from './app.module';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
-  await app.listen(PORTS.simulator);
+  await app.listen(Number(process.env.PORT ?? PORTS.simulator));
 }
 
 void bootstrap();

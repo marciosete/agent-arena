@@ -28,6 +28,9 @@ building. When the sim runs, they win and lose in public.
 4. **Resilience.** Services may not exist yet while you build — every HTTP call handles
    connection-refused/4xx/5xx gracefully (skip round, log, retry next tick). Zod-parse all
    responses.
+5. **Env-aware URLs.** Resolve service bases as `process.env.PRICING_URL ?? BASE_URLS.pricing`
+   (same for betting) so the roster can be pointed at the deployed Render services with two
+   env vars.
 
 ## Enterprise bar
 

@@ -21,7 +21,16 @@ World Cup book.
    (the margin made visible). Highlight prices that moved since the previous poll.
 4. **Settlement feed.** Poll `GET :4003/state`; as fixtures finish, append to a live feed:
    result, penalties flag, which markets settled. Newest on top.
-5. Single dense screen — no routing needed. Auto-refresh indicators so traders trust the data.
+5. **Release console: the feature-flag panel.** List `GET :4004/flags` with toggle switches;
+   flipping one calls `PUT :4004/flags/:key` (optimistic UI, roll back on error). This panel
+   is how features get RELEASED to production during the show — give it the gravitas of a
+   deploy button, including a confirm on flips. Show each flag's key, description, state and
+   last-updated time.
+6. Single dense screen — no routing needed. Auto-refresh indicators so traders trust the data.
+
+All service URLs must resolve as `import.meta.env.VITE_<SERVICE>_URL ?? BASE_URLS.<service>`
+(see punter-web's scaffold `App.tsx` for the pattern) — the same build runs on localhost and
+on Vercel against the Render services.
 
 ## Enterprise bar
 

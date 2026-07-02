@@ -1,22 +1,25 @@
 {
-  "name": "@arena/simulator",
+  "name": "@arena/flags",
   "version": "1.0.0",
   "private": true,
-  "description": "Tournament simulator: fast-forwards the remaining bracket and emits results. NestJS, in-memory by design.",
+  "description": "Feature-flag service: release decoupled from deploy. Platform infrastructure — pre-built, no workstream owns it.",
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
-    "start:prod": "node dist/main.js",
+    "start:prod": "prisma migrate deploy && node dist/main.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate"
   },
   "dependencies": {
     "@arena/contracts": "*",
     "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@prisma/client": "^6.17.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   }

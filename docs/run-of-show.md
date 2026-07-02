@@ -25,8 +25,30 @@ enterprise-grade software — through real quality gates — in one sitting.
 - [ ] `npm install && npm test && npm run dev` — everything green, all health dots online.
 - [ ] `claude` logged in; `gitleaks`, `shellcheck`, `yamllint`, `osv-scanner`, `jq` on PATH
       (`brew install` if not).
+- [ ] **Production**: Render (4 services) and Vercel (2 apps) deploys green on the latest
+      main. Pre-warm the four Render `/health` URLs (free tier sleeps; see docs/deployment.md).
+      Reset all flags to dark: `curl -X PUT .../flags/<key> -d '{"enabled":false}'` for each.
 - [ ] Do-not-disturb on, notifications off, font sizes checked from the back of the room.
 - [ ] Optional: `ANTHROPIC_API_KEY` exported if you want the Pundit bot stretch goal.
+
+## The continuous-delivery storyline (weave through the day)
+
+This is the "not vibe coding" spine: **integration, review, deploy and release are four
+separate, visible steps.**
+
+- **From minute 0**: the punter app is LIVE in production (Vercel URL on screen) — and empty.
+  The flag strip shows five dark flags. "We will deploy all day. We will release when we choose."
+- **Every checkpoint commit** → gates run on camera → push → Render/Vercel auto-deploy.
+  Production updates continuously; the audience sees deploys are boring and constant.
+- **Once, mid-show (~1:30), do the full loop ceremonially** with the first finished feature
+  (markets page): branch → PR → `/code-review` in a session finds something, fix it → CI
+  checks green on the PR → merge → watch the Vercel deploy land → open production: _still
+  dark_ → flip `punter-markets` in trader-ops (or curl) → **the feature appears in prod on
+  the big screen without a deploy**. That flip is the single most enterprise moment of the
+  day — let it breathe.
+- **The finale becomes a release schedule**: flip `punter-bet-slip`, `punter-my-bets`,
+  `punter-bracket` one by one as the sim runs; `punter-confetti` last, as the champion lands.
+- **The kill switch**: flip a flag off live to show rollback-without-deploy. One second.
 
 ## Timeline
 

@@ -11,14 +11,22 @@ export const PORTS = {
   pricing: 4001,
   betting: 4002,
   simulator: 4003,
+  flags: 4004,
   punterWeb: 5173,
   traderOps: 5174,
 } as const;
 
+/**
+ * Local-development defaults. Deployed clients override per service:
+ * - Vite apps:  `import.meta.env.VITE_PRICING_URL ?? BASE_URLS.pricing` (etc.)
+ * - Node/bots:  `process.env.PRICING_URL ?? BASE_URLS.pricing` (etc.)
+ * Servers must bind to `process.env.PORT ?? PORTS.<service>` (Render injects PORT).
+ */
 export const BASE_URLS = {
   pricing: `http://localhost:${PORTS.pricing}`,
   betting: `http://localhost:${PORTS.betting}`,
   simulator: `http://localhost:${PORTS.simulator}`,
+  flags: `http://localhost:${PORTS.flags}`,
 } as const;
 
 /** Every account starts with this balance (virtual dollars). */
@@ -112,6 +120,37 @@ export const BetQuerySchema = z.object({
   status: BetStatusSchema.optional(),
 });
 export type BetQuery = z.infer<typeof BetQuerySchema>;
+
+// ── Flags service (:4004) ──────────────────────────────────────────────
+// Platform infrastructure (pre-built, not a workstream): feature flags as
+// data, so RELEASE is decoupled from DEPLOY. Everything ships dark; flipping
+// a flag reveals it in production without a deployment.
+// GET  /health                → HealthResponse
+// GET  /flags                 → FeatureFlag[]
+// PUT  /flags/:key            → FeatureFlag   (body: UpdateFlagRequest)
+
+export const FeatureFlagSchema = z.object({
+  key: z.string().min(1),
+  enabled: z.boolean(),
+  description: z.string(),
+  updatedAt: z.string().datetime(),
+});
+export type FeatureFlag = z.infer<typeof FeatureFlagSchema>;
+
+export const UpdateFlagRequestSchema = z.object({
+  enabled: z.boolean(),
+});
+export type UpdateFlagRequest = z.infer<typeof UpdateFlagRequestSchema>;
+
+/** The flag set. Everything starts dark (false) — release is a flag flip. */
+export const FLAG_DEFINITIONS = [
+  { key: 'punter-markets', description: 'Punter app: markets & odds board' },
+  { key: 'punter-bet-slip', description: 'Punter app: bet slip & placement' },
+  { key: 'punter-my-bets', description: 'Punter app: my-bets view' },
+  { key: 'punter-bracket', description: 'Punter app: Road to the Final bracket' },
+  { key: 'punter-confetti', description: 'Punter app: champion confetti' },
+] as const;
+export type FlagKey = (typeof FLAG_DEFINITIONS)[number]['key'];
 
 // ── Simulator service (:4003) ──────────────────────────────────────────
 // GET  /health                → HealthResponse

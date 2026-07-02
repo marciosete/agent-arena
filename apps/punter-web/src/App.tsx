@@ -1,19 +1,40 @@
 import { useEffect, useState } from 'react';
-import { BASE_URLS } from '@arena/contracts';
+import { z } from 'zod';
+import { BASE_URLS, FeatureFlagSchema, type FeatureFlag } from '@arena/contracts';
 import './App.css';
 
 type ServiceKey = keyof typeof BASE_URLS;
 type ServiceStatus = 'checking' | 'online' | 'offline';
 
-const SERVICES: ServiceKey[] = ['pricing', 'betting', 'simulator'];
+/** Local defaults from the contracts; deployed builds override via Vercel env. */
+const SERVICE_URLS: Record<ServiceKey, string> = {
+  pricing: import.meta.env.VITE_PRICING_URL ?? BASE_URLS.pricing,
+  betting: import.meta.env.VITE_BETTING_URL ?? BASE_URLS.betting,
+  simulator: import.meta.env.VITE_SIMULATOR_URL ?? BASE_URLS.simulator,
+  flags: import.meta.env.VITE_FLAGS_URL ?? BASE_URLS.flags,
+};
+
+const SERVICES: ServiceKey[] = ['pricing', 'betting', 'simulator', 'flags'];
 const POLL_INTERVAL_MS = 5_000;
 
 async function checkHealth(service: ServiceKey): Promise<ServiceStatus> {
   try {
-    const response = await fetch(`${BASE_URLS[service]}/health`);
+    const response = await fetch(`${SERVICE_URLS[service]}/health`);
     return response.ok ? 'online' : 'offline';
   } catch {
     return 'offline';
+  }
+}
+
+async function fetchFlags(): Promise<FeatureFlag[]> {
+  try {
+    const response = await fetch(`${SERVICE_URLS.flags}/flags`);
+    if (!response.ok) {
+      return [];
+    }
+    return z.array(FeatureFlagSchema).parse(await response.json());
+  } catch {
+    return [];
   }
 }
 
@@ -22,17 +43,23 @@ export default function App() {
     pricing: 'checking',
     betting: 'checking',
     simulator: 'checking',
+    flags: 'checking',
   });
+  const [flags, setFlags] = useState<FeatureFlag[]>([]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function poll(): Promise<void> {
-      const entries = await Promise.all(
-        SERVICES.map(async (service) => [service, await checkHealth(service)] as const)
-      );
+      const [entries, flagList] = await Promise.all([
+        Promise.all(
+          SERVICES.map(async (service) => [service, await checkHealth(service)] as const)
+        ),
+        fetchFlags(),
+      ]);
       if (!cancelled) {
         setStatuses(Object.fromEntries(entries) as Record<ServiceKey, ServiceStatus>);
+        setFlags(flagList);
       }
     }
 
@@ -60,7 +87,19 @@ export default function App() {
           </li>
         ))}
       </ul>
-      <p className="hint">Services light up as the workstreams ship them.</p>
+      {flags.length > 0 && (
+        <ul className="flags" aria-label="feature flags">
+          {flags.map((flag) => (
+            <li key={flag.key} className={`flag ${flag.enabled ? 'is-live' : 'is-dark'}`}>
+              <span className="flag-key">{flag.key}</span>
+              <span className="flag-state">{flag.enabled ? 'live' : 'dark'}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="hint">
+        Services light up as the workstreams ship them. Features go live when their flag flips.
+      </p>
     </main>
   );
 }

@@ -4,14 +4,14 @@ import { PrismaClient } from '../../generated/client';
 /**
  * Prisma connects lazily on first query, so the service boots even when the
  * database isn't reachable yet (e.g. before .env is configured).
- * The connection string comes from BETTING_DATABASE_URL — see .env.example.
+ * The connection string comes from FLAGS_DATABASE_URL — see .env.example.
  */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor() {
     super({
       datasourceUrl:
-        process.env.BETTING_DATABASE_URL ?? 'postgresql://arena:arena@localhost:5432/betting',
+        process.env.FLAGS_DATABASE_URL ?? 'postgresql://arena:arena@localhost:5432/flags',
     });
   }
 

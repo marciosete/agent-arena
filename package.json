@@ -15,7 +15,7 @@
     "bots"
   ],
   "scripts": {
-    "dev": "concurrently -k -n punter,trader,pricing,betting,simulator -c cyan,magenta,yellow,green,blue \"npm run dev -w apps/punter-web\" \"npm run dev -w apps/trader-ops\" \"npm run dev -w services/pricing\" \"npm run dev -w services/betting\" \"npm run dev -w services/simulator\"",
+    "dev": "concurrently -k -n punter,trader,pricing,betting,simulator,flags -c cyan,magenta,yellow,green,blue,white \"npm run dev -w apps/punter-web\" \"npm run dev -w apps/trader-ops\" \"npm run dev -w services/pricing\" \"npm run dev -w services/betting\" \"npm run dev -w services/simulator\" \"npm run dev -w services/flags\"",
     "dev:web": "npm run dev -w apps/punter-web",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint .",
@@ -45,7 +45,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "eslint --fix --max-warnings 0",
+      "eslint --fix --max-warnings 0 --no-warn-ignored",
       "prettier --write"
     ],
     "*.{json,md,css,html,yml,yaml}": [

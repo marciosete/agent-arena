@@ -1,6 +1,7 @@
 node_modules
 dist
 coverage
+generated
 jscpd-report
 package-lock.json
 .husky/_

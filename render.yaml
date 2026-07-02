@@ -1,0 +1,59 @@
+# Render Blueprint — the four NestJS services.
+# Apply once (Render dashboard → New → Blueprint → this repo); after that,
+# every push to main auto-deploys. The two Vite apps deploy on Vercel.
+# Database URLs are secrets: set them in the dashboard when prompted
+# (sync: false), using the values from each service's local .env.
+services:
+  - type: web
+    name: arena-pricing
+    runtime: node
+    plan: free
+    buildCommand: npm install -g npm@11 && npm ci && npm run build -w services/pricing
+    startCommand: npm run start:prod -w services/pricing
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: PRICING_DATABASE_URL
+        sync: false
+
+  - type: web
+    name: arena-betting
+    runtime: node
+    plan: free
+    buildCommand: npm install -g npm@11 && npm ci && npm run build -w services/betting
+    startCommand: npm run start:prod -w services/betting
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: BETTING_DATABASE_URL
+        sync: false
+
+  - type: web
+    name: arena-simulator
+    runtime: node
+    plan: free
+    buildCommand: npm install -g npm@11 && npm ci && npm run build -w services/simulator
+    startCommand: npm run start:prod -w services/simulator
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+
+  - type: web
+    name: arena-flags
+    runtime: node
+    plan: free
+    buildCommand: npm install -g npm@11 && npm ci && npm run build -w services/flags
+    startCommand: npm run start:prod -w services/flags
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: FLAGS_DATABASE_URL
+        sync: false

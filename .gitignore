@@ -5,6 +5,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Prisma generated clients (regenerated on install)
+services/*/generated/
+
 # Test artifacts
 coverage/
 jscpd-report/
