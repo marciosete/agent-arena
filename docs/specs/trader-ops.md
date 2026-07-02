@@ -25,7 +25,9 @@ World Cup book.
    flipping one calls `PUT :4004/flags/:key` (optimistic UI, roll back on error). This panel
    is how features get RELEASED to production during the show — give it the gravitas of a
    deploy button, including a confirm on flips. Show each flag's key, description, state and
-   last-updated time.
+   last-updated time. **Writes are guarded**: the PUT needs an `x-admin-key` header. Never
+   bake the key into the bundle — prompt for it once (small inline form), keep it in
+   localStorage, send it on every flip, and surface a clear message on 401.
 6. Single dense screen — no routing needed. Auto-refresh indicators so traders trust the data.
 
 All service URLs must resolve as `import.meta.env.VITE_<SERVICE>_URL ?? BASE_URLS.<service>`

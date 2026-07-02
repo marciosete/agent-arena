@@ -29,6 +29,9 @@ describe('AppModule (e2e, prisma mocked)', () => {
       .compile();
     app = moduleRef.createNestApplication();
     await app.init();
+    // ConfigModule loads the developer's services/flags/.env into process.env;
+    // the unguarded tests below assume no admin key is configured.
+    delete process.env.FLAGS_ADMIN_KEY;
   });
 
   afterAll(async () => {
@@ -75,5 +78,42 @@ describe('AppModule (e2e, prisma mocked)', () => {
       .send({ enabled: true })
       .expect(200);
     expect(FeatureFlagSchema.parse(response.body).enabled).toBe(true);
+  });
+
+  describe('with FLAGS_ADMIN_KEY configured', () => {
+    beforeAll(() => {
+      process.env.FLAGS_ADMIN_KEY = 'test-admin-key';
+    });
+
+    afterAll(() => {
+      delete process.env.FLAGS_ADMIN_KEY;
+    });
+
+    it('keeps reads public', async () => {
+      const response = await request(app.getHttpServer()).get('/flags');
+      expect(response.status).toBe(200);
+    });
+
+    it('rejects writes without the admin key', async () => {
+      const response = await request(app.getHttpServer())
+        .put('/flags/punter-markets')
+        .send({ enabled: true });
+      expect(response.status).toBe(401);
+    });
+
+    it('accepts writes with the admin key', async () => {
+      prisma.featureFlag.findUnique.mockResolvedValue({ key: 'punter-markets' });
+      prisma.featureFlag.update.mockResolvedValue({
+        key: 'punter-markets',
+        enabled: false,
+        description: 'markets',
+        updatedAt: NOW,
+      });
+      const response = await request(app.getHttpServer())
+        .put('/flags/punter-markets')
+        .set('x-admin-key', 'test-admin-key')
+        .send({ enabled: false });
+      expect(response.status).toBe(200);
+    });
   });
 });

@@ -54,11 +54,14 @@ Deploys happen all day; releases are flag flips:
 curl https://flags.hackathon.beer/flags | jq
 
 # RELEASE the markets page to production — no deploy involved
+# (the admin key lives in services/flags/.env — writes are guarded)
 curl -X PUT https://flags.hackathon.beer/flags/punter-markets \
+  -H "x-admin-key: $FLAGS_ADMIN_KEY" \
   -H 'content-type: application/json' -d '{"enabled": true}'
 
 # kill switch: dark again in one second
 curl -X PUT https://flags.hackathon.beer/flags/punter-markets \
+  -H "x-admin-key: $FLAGS_ADMIN_KEY" \
   -H 'content-type: application/json' -d '{"enabled": false}'
 ```
 
@@ -71,7 +74,9 @@ flags from the back office instead of curl.
   ~30–60s to wake. Pre-warm all four `/health` URLs before the show (it's in the
   run-of-show pre-flight), or upgrade the instances for the day.
 - **npm 11**: the build command pins it — same lockfile rule as CI.
-- **Flag writes are unauthenticated** — fine for a one-day demo on obscure URLs;
-  in a real system that PUT sits behind SSO. Say that line on stage; it lands.
+- **Flag writes are guarded**: `PUT /flags/:key` requires the `x-admin-key` header matching
+  the service's `FLAGS_ADMIN_KEY` (set on Render; value in `services/flags/.env`). Reads are
+  public. The trader-ops panel asks for the key once and keeps it in localStorage — it must
+  never be baked into the public bundle.
 - **The demo runs locally regardless.** The deployed platform is the CD story;
   localhost is the fallback if a venue firewall hates you. Same code, same flags DB.

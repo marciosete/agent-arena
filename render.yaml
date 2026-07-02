@@ -57,3 +57,5 @@ services:
         value: '22'
       - key: FLAGS_DATABASE_URL
         sync: false
+      - key: FLAGS_ADMIN_KEY
+        sync: false

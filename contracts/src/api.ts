@@ -127,7 +127,9 @@ export type BetQuery = z.infer<typeof BetQuerySchema>;
 // a flag reveals it in production without a deployment.
 // GET  /health                → HealthResponse
 // GET  /flags                 → FeatureFlag[]
-// PUT  /flags/:key            → FeatureFlag   (body: UpdateFlagRequest)
+// PUT  /flags/:key            → FeatureFlag   (body: UpdateFlagRequest;
+//                               requires x-admin-key header when the service
+//                               has FLAGS_ADMIN_KEY configured — reads stay public)
 
 export const FeatureFlagSchema = z.object({
   key: z.string().min(1),
