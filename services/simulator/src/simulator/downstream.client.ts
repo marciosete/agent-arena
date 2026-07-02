@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   BASE_URLS,
   MarketSchema,
@@ -23,14 +23,14 @@ const REQUEST_TIMEOUT_MS = 10_000;
 
 @Injectable()
 export class DownstreamClient {
+  private readonly logger = new Logger(DownstreamClient.name);
+  private warnedMissingBettingKey = false;
+
   /** Reprice after a result; returns the updated markets to resolve winners from. */
   async reprice(settlement: SettlementEvent): Promise<Market[]> {
     const pricingUrl = process.env.PRICING_URL ?? BASE_URLS.pricing;
     const body = await this.post(`${pricingUrl}/reprice`, { settlement });
-    if (!Array.isArray(body)) {
-      throw new Error('pricing /reprice did not return a market array');
-    }
-    return body.map((market) => MarketSchema.parse(market));
+    return MarketSchema.array().parse(body);
   }
 
   /** Settle bets for a result; requires betting's admin key on top of the JWT. */
@@ -40,6 +40,14 @@ export class DownstreamClient {
   ): Promise<SettleResponse> {
     const bettingUrl = process.env.BETTING_URL ?? BASE_URLS.betting;
     const adminKey = process.env.BETTING_ADMIN_KEY;
+    if (!adminKey && !this.warnedMissingBettingKey) {
+      // Loud once: wherever betting enforces its key, every /settle would 401
+      // and the finale would silently never pay a bet out.
+      this.warnedMissingBettingKey = true;
+      this.logger.warn(
+        'BETTING_ADMIN_KEY is not set — betting will reject /settle in any environment that enforces it'
+      );
+    }
     const body = await this.post(
       `${bettingUrl}/settle`,
       { settlement, winningSelections },

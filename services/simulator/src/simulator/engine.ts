@@ -116,7 +116,7 @@ export function applyResult(fixtures: Fixture[], fixture: Fixture, result: Fixtu
 /** The next unplayed fixture in kickoff order, or undefined when all are played. */
 export function nextUnplayedFixture(fixtures: Fixture[]): Fixture | undefined {
   return [...fixtures]
-    .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+    .sort((a, b) => Date.parse(a.kickoff) - Date.parse(b.kickoff))
     .find((fixture) => fixture.status !== 'finished');
 }
 

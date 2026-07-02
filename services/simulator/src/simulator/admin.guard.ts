@@ -1,6 +1,6 @@
 import {
+  ForbiddenException,
   Injectable,
-  UnauthorizedException,
   type CanActivate,
   type ExecutionContext,
 } from '@nestjs/common';
@@ -10,8 +10,11 @@ import type { Request } from 'express';
 /**
  * Guards the simulator's control plane (reset / play-next / run) — the finale
  * engine. State-changing calls require the x-admin-key header to match
- * SIMULATOR_ADMIN_KEY. Reads (/state, /health) stay public. When no key is
- * configured (local development), control endpoints are open.
+ * SIMULATOR_ADMIN_KEY. A bad or missing key is 403 Forbidden (the canonical
+ * code in integration.md §1: the JWT already proved *authenticated*; this
+ * guard decides *authorized*, and clients key their remediation on the
+ * distinction). When no key is configured (local development), control
+ * endpoints are open.
  */
 @Injectable()
 export class AdminGuard implements CanActivate {
@@ -24,7 +27,7 @@ export class AdminGuard implements CanActivate {
     const provided = Buffer.from(String(request.headers['x-admin-key'] ?? ''));
     const expected = Buffer.from(adminKey);
     if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
-      throw new UnauthorizedException('x-admin-key header required to control the simulator');
+      throw new ForbiddenException('x-admin-key header required to control the simulator');
     }
     return true;
   }
