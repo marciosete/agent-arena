@@ -104,14 +104,28 @@ jobs:
         if: env.VERCEL_TOKEN == ''
         run: echo "VERCEL_TOKEN secret not configured — skipping frontend deploys."
 
-      - name: Deploy punter-web
+      - name: Use npm 11 (lockfile is written by npm 11)
+        if: env.VERCEL_TOKEN != ''
+        run: npm install -g npm@11
+
+      # Prebuilt pattern: build in THIS runner (same env the quality job just
+      # proved green), upload only the output — no remote build to go wrong.
+      - name: Build & deploy punter-web
         if: env.VERCEL_TOKEN != ''
         env:
           VERCEL_PROJECT_ID: prj_YKTWnj59IvAXUaVowdoJLr8qaIlk
-        run: npx vercel@48 deploy --prod --yes --token "$VERCEL_TOKEN"
+        run: |
+          rm -rf .vercel
+          npx vercel@48 pull --yes --environment=production --token "$VERCEL_TOKEN"
+          npx vercel@48 build --prod --yes --token "$VERCEL_TOKEN"
+          npx vercel@48 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN"
 
-      - name: Deploy trader-ops
+      - name: Build & deploy trader-ops
         if: env.VERCEL_TOKEN != ''
         env:
           VERCEL_PROJECT_ID: prj_LuT4YqcHQ6BneNBHh3mD7kwgajbC
-        run: npx vercel@48 deploy --prod --yes --token "$VERCEL_TOKEN"
+        run: |
+          rm -rf .vercel
+          npx vercel@48 pull --yes --environment=production --token "$VERCEL_TOKEN"
+          npx vercel@48 build --prod --yes --token "$VERCEL_TOKEN"
+          npx vercel@48 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN"
