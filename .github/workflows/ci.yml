@@ -99,6 +99,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '22'
+          cache: 'npm'
 
       - name: Skip notice (no VERCEL_TOKEN secret yet)
         if: env.VERCEL_TOKEN == ''
@@ -107,6 +108,13 @@ jobs:
       - name: Use npm 11 (lockfile is written by npm 11)
         if: env.VERCEL_TOKEN != ''
         run: npm install -g npm@11
+
+      # Install here, where it provably works (same as the quality job):
+      # postinstall compiles contracts and generates the prisma clients.
+      # Vercel's own install phase is configured as a script-less no-op.
+      - name: Install Dependencies
+        if: env.VERCEL_TOKEN != ''
+        run: npm ci
 
       # Prebuilt pattern: build in THIS runner (same env the quality job just
       # proved green), upload only the output — no remote build to go wrong.
