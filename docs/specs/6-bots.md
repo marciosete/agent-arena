@@ -44,7 +44,7 @@ building. When the sim runs, they win and lose in public.
 
 ## Definition of Done
 
-Meet the **gates in `docs/definition-of-done.md`** (run and paste the evidence). Plus prove
+Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus prove
 these — paste the name of the test for each:
 
 - Each strategy is a pure function with a named test (Sharp bets only with edge + capped Kelly ·

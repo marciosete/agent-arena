@@ -60,7 +60,7 @@ Render services.
 
 ## Definition of Done
 
-Meet the **gates in `docs/definition-of-done.md`** (run and paste the evidence). Plus prove
+Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus prove
 these — paste the name of the test for each:
 
 - Each feature renders **only when its flag is on** (Markets, Bet Slip, My Bets, Bracket,

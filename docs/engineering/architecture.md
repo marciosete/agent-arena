@@ -12,7 +12,7 @@
 
 **Continuous delivery:** main auto-deploys to production (Render + Vercel) after CI. Every
 feature ships **dark** behind a flag from the flags service and is released by flipping it —
-see `docs/deployment.md`. Client URLs resolve env-first with localhost fallback:
+see `docs/engineering/deployment.md`. Client URLs resolve env-first with localhost fallback:
 `import.meta.env.VITE_<SERVICE>_URL ?? BASE_URLS.<service>` in apps,
 `process.env.<SERVICE>_URL ?? BASE_URLS.<service>` in bots.
 
@@ -23,9 +23,6 @@ Persisted services use **Prisma** on Postgres (Neon); you design the models in
 Everything speaks the REST surface defined in `contracts/src/api.ts` (ports, endpoints,
 request/response zod schemas). Seed data (real World Cup 2026 bracket) is exported as
 `TEAMS` and `FIXTURES` from `@arena/contracts`.
-
-Your spec lives in `docs/specs/`, named by launch order (`1-punter.md`, `2-trader.md`,
-`3-pricing.md`, `4-betting.md`, `5-simulator.md`, `6-bots.md`). Read yours before writing code.
 
 ## Style
 

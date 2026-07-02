@@ -34,8 +34,9 @@ services/flags/        🧊 feature flags          (:4004, pre-built platform in
 apps/punter-web/       customer sportsbook       (:5173, React + Vite)
 apps/trader-ops/       trader console            (:5174, React + Vite)
 bots/                  autonomous punter agents
+docs/engineering/      architecture, definition-of-done, goal-oriented-tasks, deployment, security
 docs/specs/            one spec per workstream
-docs/                  run of show, kickoff prompts, glossary, overview, deployment
+docs/                  run of show, kickoff prompts, mental map, glossary, overview
 render.yaml            Render blueprint — 4 services auto-deploy from main
 ```
 
@@ -43,7 +44,7 @@ render.yaml            Render blueprint — 4 services auto-deploy from main
 
 Main auto-deploys to production on every green push — Render for the services,
 Vercel for the apps. **Everything ships dark behind feature flags**; releasing is a
-flag flip in the trader console, not a deploy. Full story: [docs/deployment.md](docs/deployment.md).
+flag flip in the trader console, not a deploy. Full story: [docs/engineering/deployment.md](docs/engineering/deployment.md).
 
 ## Quality gates (progressive, modelled on euda-app)
 

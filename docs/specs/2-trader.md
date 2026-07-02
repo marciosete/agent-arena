@@ -52,7 +52,7 @@ on Vercel against the Render services.
 
 ## Definition of Done
 
-Meet the **gates in `docs/definition-of-done.md`** (run and paste the evidence). Plus prove
+Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus prove
 these — paste the name of the test for each:
 
 - Flags panel flips a flag via `PUT :4004/flags/:key` with the `x-admin-key` header (key from a

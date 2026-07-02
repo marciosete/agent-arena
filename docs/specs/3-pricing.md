@@ -57,7 +57,7 @@ contracts `FIXTURES` (idempotent upserts — restarts must not duplicate markets
 
 ## Definition of Done
 
-Meet the **gates in `docs/definition-of-done.md`** (run and paste the evidence). Plus prove
+Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus prove
 these — paste the name of the test for each:
 
 - `GET /markets`, `GET /markets/:fixtureId`, `GET /outright` return payloads that

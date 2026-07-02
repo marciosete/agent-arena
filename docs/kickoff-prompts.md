@@ -13,7 +13,7 @@ claude
 `/goal` sets the spec as the session's completion contract and keeps it working until the
 Definition of Done holds. CLAUDE.md auto-loads (product conventions + quality bar); the spec
 carries the per-workstream detail and Definition of Done; how goal-driven tasks work is in
-**`docs/goal-oriented-tasks.md`**. Nothing else to paste.
+**`docs/engineering/goal-oriented-tasks.md`**. Nothing else to paste.
 
 Because the evaluator only reads what's surfaced in the conversation, use the explicit-condition
 form (more reliable than a bare `@path`) — and put the event's parallel-session rules right in

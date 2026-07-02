@@ -48,7 +48,7 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
    **max liability** (worst-case payout across selections minus stakes held).
 7. **`GET /accounts/:id/ledger`** — the audit trail (shape is yours; document it in a README).
 
-## Security (public repo + public API — see `docs/security.md`)
+## Security (public repo + public API — see `docs/engineering/security.md`)
 
 - Enforce every money rule **server-side**: stake ≤ balance, stake > 0, no NaN/overflow.
   Never trust the client's numbers. Wallet debit + bet + ledger in one `$transaction`.
@@ -67,7 +67,7 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
 
 ## Definition of Done
 
-Meet the **gates in `docs/definition-of-done.md`** (run and paste the evidence). Plus a named
+Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus a named
 passing test for each — paste the test names:
 
 - opens at 10,000 · rejects stake > balance · 409 when price moved > 5% · **replayed
