@@ -14,8 +14,10 @@ workstream. You are one of those sessions. The audience is watching. Ship like a
    They are pre-built.
 4. **Never add dependencies.** Everything you need is installed. If you believe you need a new
    package, ask the host.
-5. **Never run `git commit` or `git push`.** The host commits at milestones (avoids index-lock
-   races between parallel sessions).
+5. **Don't `git commit` until the host tells you to** — then commit only your own directory's
+   changes, with a clear message, and stop. **Never `git push`** (the host pushes at
+   checkpoints; that's what triggers the gated pipeline). Committing only on command keeps
+   parallel sessions from racing on the shared git index.
 6. **Never start long-running dev servers yourself** — the host runs `npm run dev` in a separate
    terminal. Verify HTTP behaviour through your Nest testing-module specs or a one-shot `curl`.
 7. **Never print or hardcode database connection strings.** They live in your workspace's
@@ -25,7 +27,8 @@ workstream. You are one of those sessions. The audience is watching. Ship like a
 > commands were blocked by a `deny` list in `.claude/settings.json`; that list has been
 > removed, so nothing stops you from crossing them — don't:
 >
-> - `Bash(git commit:*)`, `Bash(git push:*)` — rule 5 (the host commits at milestones)
+> - `Bash(git push:*)` — rule 5 (the host pushes at checkpoints); `Bash(git commit:*)` only
+>   when the host asks for it (rule 5)
 > - `Read(./.env)` — rule 7 (never read or surface secrets)
 > - `Edit(./contracts/**)` — rule 2 (`contracts/` is frozen)
 > - `Edit(./package.json)`, `Edit(./package-lock.json)`, `Edit(./eslint.config.mjs)`,
