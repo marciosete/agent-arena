@@ -1,5 +1,5 @@
 > **Kickoff — session 4.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
-> condition. CLAUDE.md auto-loads (shared rules + universal Definition of Done). Work strictly
+> condition. CLAUDE.md auto-loads the shared rules. Work strictly
 > test-first — money moves here.
 
 # Workstream: Betting Core
@@ -48,7 +48,7 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
    **max liability** (worst-case payout across selections minus stakes held).
 7. **`GET /accounts/:id/ledger`** — the audit trail (shape is yours; document it in a README).
 
-## Security (public repo + public API — see CLAUDE.md)
+## Security (public repo + public API — see `docs/security.md`)
 
 - Enforce every money rule **server-side**: stake ≤ balance, stake > 0, no NaN/overflow.
   Never trust the client's numbers. Wallet debit + bet + ledger in one `$transaction`.
@@ -67,7 +67,7 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
 
 ## Definition of Done
 
-Meet the **universal gates in `CLAUDE.md`** (run + paste the evidence: tests, typecheck, lint,
+Meet the **universal gates in `docs/definition-of-done.md`** (run + paste the evidence: tests, typecheck, lint,
 ≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus a named
 passing test for each — paste the test names:
 

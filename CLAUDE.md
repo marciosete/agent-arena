@@ -1,7 +1,4 @@
-# Agent Arena — Road to the Final
-
-A World Cup sportsbook being built **live** by parallel Claude Code sessions, each owning one
-workstream. You are one of those sessions. The audience is watching. Ship like a senior engineer.
+# World Cup sportsbook
 
 ## The golden rules (non-negotiable)
 
@@ -35,34 +32,11 @@ workstream. You are one of those sessions. The audience is watching. Ship like a
 >   `Edit(./tsconfig.base.json)`, `Edit(./.husky/**)`, `Edit(./scripts/**)`,
 >   `Edit(./.github/**)` — rule 3 (shared config is pre-built)
 
-## Architecture
+## Architecture & stack
 
-| Workstream | Directory             | Port | Persistence                                                 | Job                                                                                                |
-| ---------- | --------------------- | ---- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| pricing    | `services/pricing/`   | 4001 | Postgres (Prisma)                                           | Model probabilities, publish markets with odds                                                     |
-| betting    | `services/betting/`   | 4002 | Postgres (Prisma)                                           | Accounts, wallets, bets, settlement, exposure                                                      |
-| simulator  | `services/simulator/` | 4003 | in-memory (by design — ephemeral state with a reset button) | Fast-forward the tournament, emit results                                                          |
-| _flags_    | `services/flags/`     | 4004 | Postgres (Prisma)                                           | **Platform infrastructure, pre-built — READ-ONLY like contracts.** Feature flags: release ≠ deploy |
-| punter-web | `apps/punter-web/`    | 5173 | —                                                           | Customer sportsbook UI + bracket visualization                                                     |
-| trader-ops | `apps/trader-ops/`    | 5174 | —                                                           | Internal liability/exposure console                                                                |
-| bots       | `bots/`               | —    | —                                                           | Autonomous punter agents betting into the platform                                                 |
-
-**Continuous delivery:** main auto-deploys to production (Render + Vercel) after CI. Every
-feature ships **dark** behind a flag from the flags service and is released by flipping it —
-see `docs/deployment.md`. Client URLs resolve env-first with localhost fallback:
-`import.meta.env.VITE_<SERVICE>_URL ?? BASE_URLS.<service>` in apps,
-`process.env.<SERVICE>_URL ?? BASE_URLS.<service>` in bots.
-
-Services are **NestJS 11** (modules, DI, controllers, providers — canonical patterns).
-Persisted services use **Prisma** on Postgres (Neon); you design the models in
-`prisma/schema.prisma` and apply them with `npx prisma migrate dev`.
-
-Everything speaks the REST surface defined in `contracts/src/api.ts` (ports, endpoints,
-request/response zod schemas). Seed data (real World Cup 2026 bracket) is exported as
-`TEAMS` and `FIXTURES` from `@arena/contracts`.
-
-Your spec lives in `docs/specs/`, named by launch order (`1-punter.md`, `2-trader.md`,
-`3-pricing.md`, `4-betting.md`, `5-simulator.md`, `6-bots.md`). Read yours before writing code.
+The workstream map (ownership, ports, persistence), the NestJS/Prisma stack, the
+continuous-delivery model, and code style are in **`docs/architecture.md`**. Your spec lives in
+`docs/specs/` (named by launch order) — read yours before writing code.
 
 ## Commands
 
@@ -92,25 +66,7 @@ npx prisma generate             # refresh the typed client after schema changes
 - Keep controllers thin; domain logic lives in providers/pure modules that are easy to test.
   Mock `PrismaService` in unit tests (standard Nest DI override).
 
-## Definition of Done — how you finish (and how `/goal` checks it)
+## Definition of Done
 
-Your spec ends with a **Definition of Done**. The `/goal` evaluator only reads what you
-**surface in the conversation** — it never runs commands or opens files — so prove completion by
-running each check and **pasting its result**:
-
-- `npm test -w <your-dir>` exits 0 · `npm run typecheck -w <your-dir>` clean · `npm run lint`
-  zero warnings · changed files ≥85% coverage · `npm run build -w <your-dir>` succeeds
-- Constraints held: **only your directory changed · `contracts/` untouched · no new dependencies ·
-  not pushed**
-- Post a one-line progress update as you finish each milestone (that's the host's feed).
-
-**Declaring done:** list each Definition-of-Done item from your spec and paste the command + its
-result (or the name of the test that proves it). If you can't meet one, stop and report the
-blocker — don't loop.
-
-## Style
-
-- TypeScript strict; no `any` unless truly unavoidable.
-- Small modules, pure functions for domain maths (pricing, staking, settlement) so they're
-  trivially testable; Nest providers orchestrate them.
-- Database access only through `PrismaService`. Use `$transaction` where money moves.
+How you prove you're finished — and how the `/goal` evaluator checks it — is in
+**`docs/definition-of-done.md`**. Your spec's Definition of Done builds on it.

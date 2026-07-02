@@ -1,5 +1,5 @@
 > **Kickoff — session 2.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
-> condition. CLAUDE.md auto-loads (shared rules + universal Definition of Done).
+> condition. CLAUDE.md auto-loads the shared rules.
 
 # Workstream: Trader Ops
 
@@ -52,7 +52,7 @@ on Vercel against the Render services.
 
 ## Definition of Done
 
-Meet the **universal gates in `CLAUDE.md`** (run + paste the evidence: tests, typecheck, lint,
+Meet the **universal gates in `docs/definition-of-done.md`** (run + paste the evidence: tests, typecheck, lint,
 ≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus prove
 these — paste the name of the test for each:
 
