@@ -7,6 +7,11 @@ that makes it all pay off inside three hours._
 Colour key (from the diagram): 🔵 apps (what the room sees) · 🟣 services (the engine room) ·
 ⚪ platform + agents.
 
+**8 elements, but only 6 are built live tomorrow (= 6 sessions).** The other two —
+🧊 **Contracts** and 🧊 **Flags** — are pre-built, deployed, and frozen: they're the scaffolding
+that lets six independent AI sessions build the rest without colliding. The fleet is the six
+workstreams: Pricing, Betting, Simulator, Punter, Trader, Bots.
+
 ---
 
 ## The eight elements
