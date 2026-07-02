@@ -35,8 +35,9 @@ apps/punter-web/       customer sportsbook       (:5173, React + Vite)
 apps/trader-ops/       trader console            (:5174, React + Vite)
 bots/                  autonomous punter agents
 docs/engineering/      architecture, definition-of-done, goal-oriented-tasks, deployment, security
+docs/domain/           glossary — the betting domain's ubiquitous language
 docs/specs/            one spec per workstream
-docs/                  run of show, kickoff prompts, mental map, glossary, overview
+docs/                  run of show, kickoff prompts, mental map, overview
 render.yaml            Render blueprint — 4 services auto-deploy from main
 ```
 

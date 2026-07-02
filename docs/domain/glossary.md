@@ -1,7 +1,7 @@
-# Glossary — the domain in one page
+# Glossary — the betting domain
 
-Everything a host needs to speak sportsbook fluently. Terms appear in the specs, the contracts,
-and the code the fleet will write.
+The ubiquitous language of this sportsbook: the terms used across the specs, the contracts, and
+the code. Read this to speak the domain fluently.
 
 ## The cast
 
