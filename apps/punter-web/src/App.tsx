@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { BASE_URLS, FeatureFlagSchema, type FeatureFlag } from '@arena/contracts';
+import { useAuth } from '@arena/web-auth';
 import './App.css';
 
 type ServiceKey = keyof typeof BASE_URLS;
@@ -34,9 +35,12 @@ async function checkHealth(service: ServiceKey): Promise<ServiceStatus> {
   }
 }
 
-async function fetchFlags(): Promise<FeatureFlag[]> {
+async function fetchFlags(token: string | undefined): Promise<FeatureFlag[]> {
   try {
-    const response = await fetch(`${SERVICE_URLS.flags}/flags`);
+    // Flags now require a JWT (all services do); health stays public.
+    const response = await fetch(`${SERVICE_URLS.flags}/flags`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
     if (!response.ok) {
       return [];
     }
@@ -47,13 +51,15 @@ async function fetchFlags(): Promise<FeatureFlag[]> {
 }
 
 function useFlags(): FeatureFlag[] {
+  const { session } = useAuth();
+  const token = session?.token;
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function poll(): Promise<void> {
-      const flagList = await fetchFlags();
+      const flagList = await fetchFlags(token);
       if (!cancelled) {
         setFlags(flagList);
       }
@@ -65,7 +71,7 @@ function useFlags(): FeatureFlag[] {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [token]);
 
   return flags;
 }
@@ -121,10 +127,27 @@ function Nav({ flags }: Readonly<{ flags: FeatureFlag[] }>) {
   );
 }
 
+function WalletChip() {
+  const { session, logout } = useAuth();
+  if (!session) {
+    return null;
+  }
+  return (
+    <div className="wallet">
+      <span className="wallet-balance">🍩 {session.account.balance.toLocaleString()}</span>
+      <span className="wallet-name">{session.account.name}</span>
+      <button type="button" className="wallet-logout" onClick={logout}>
+        Log out
+      </button>
+    </div>
+  );
+}
+
 function HomePage() {
   const flags = useFlags();
   return (
     <main className="shell">
+      <WalletChip />
       <Nav flags={flags} />
       <h1>Road to the Final</h1>
       <p className="sub">The World Cup knockout stage.</p>
@@ -136,6 +159,7 @@ function StatusPage() {
   const statuses = useServiceStatuses();
   return (
     <main className="shell">
+      <WalletChip />
       <h1 className="status-title">Platform Status</h1>
       <ul className="services" aria-label="platform services">
         {SERVICES.map((service) => (

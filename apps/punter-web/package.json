@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@arena/contracts": "*",
+    "@arena/web-auth": "*",
     "zod": "^3.25.76",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

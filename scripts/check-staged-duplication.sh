@@ -15,6 +15,7 @@ STAGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACMR |
   grep -v '\.test\.tsx$' |
   grep -v '\.spec\.ts$' |
   grep -v '/main\.ts$' |
+  grep -v '/main\.tsx$' |
   grep -v '/app\.module\.ts$' |
   grep -v '/health/health\.controller\.ts$' || true)
 
