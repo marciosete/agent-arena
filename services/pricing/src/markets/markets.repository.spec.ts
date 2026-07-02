@@ -112,7 +112,9 @@ describe('MarketsRepository', () => {
         settledAt: NOW.toISOString(),
       },
     ]);
-    expect(prisma.settlement.findMany).toHaveBeenCalledWith({ orderBy: { appliedAt: 'asc' } });
+    expect(prisma.settlement.findMany).toHaveBeenCalledWith({
+      orderBy: [{ appliedAt: 'asc' }, { fixtureId: 'asc' }],
+    });
   });
 
   it('persists a reprice atomically: market + selections upserts, pruning, settlement event', async () => {

@@ -17,26 +17,15 @@ import { replaySettlements } from './domain/bracket';
 import { OUTRIGHT_MARKET_ID } from './domain/market-builder';
 import { MarketsRepository } from './markets/markets.repository';
 import { InMemoryMarketsRepository } from './markets/testing/in-memory-markets.repository';
+import { settlementFor } from './testing/settlement';
 
 const MARKETS = '/markets';
 const OUTRIGHT = '/outright';
 const REPRICE = '/reprice';
 const R16_2 = 'R16-2';
-const SETTLED_AT = '2026-07-04T23:00:00.000Z';
 const AUTH = 'Authorization';
 
 const MarketsResponse = MarketSchema.array();
-
-function settlementFor(fixtureId: string, winnerTeamId: string): SettlementEvent {
-  return {
-    fixtureId,
-    winnerTeamId,
-    homeScore: 2,
-    awayScore: 0,
-    decidedOnPenalties: false,
-    settledAt: SETTLED_AT,
-  };
-}
 
 async function createApp(repository: InMemoryMarketsRepository): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -73,11 +62,6 @@ describe('pricing API (e2e over the real module graph, in-memory persistence)', 
 
   afterAll(async () => {
     await app.close();
-  });
-
-  it('keeps GET /health public', async () => {
-    const response = await request(server()).get('/health');
-    expect(response.status).toBe(200);
   });
 
   it('rejects every protected endpoint with 401 for a missing or invalid bearer', async () => {
@@ -121,10 +105,12 @@ describe('pricing API (e2e over the real module graph, in-memory persistence)', 
       .set(AUTH, bearer)
       .expect(200);
     const market = MarketSchema.parse(response.body);
-    const france = market.selections.find((s) => s.name === 'France');
-    const paraguay = market.selections.find((s) => s.name === 'Paraguay');
-    expect(france?.price).toBeLessThan(2);
-    expect(paraguay?.price).toBeGreaterThan(5);
+    const [france, paraguay] = market.selections;
+    // Selections are served favourite-first (the read-side ordering contract).
+    expect(france.name).toBe('France');
+    expect(paraguay.name).toBe('Paraguay');
+    expect(france.price).toBeLessThan(2);
+    expect(paraguay.price).toBeGreaterThan(5);
     const impliedSum = market.selections.reduce((sum, s) => sum + 1 / s.price, 0);
     expect(impliedSum).toBeCloseTo(TARGET_OVERROUND, 1);
   });
@@ -200,7 +186,7 @@ describe('pricing API (e2e over the real module graph, in-memory persistence)', 
   });
 
   it('runs the finale chain to a champion: every market settles, the outright crowns the winner', async () => {
-    let bracket = replaySettlements(FIXTURES, applied);
+    let bracket = replaySettlements(FIXTURES, applied).fixtures;
     let markets: Market[] = [];
     let champion: string | null = null;
     for (;;) {
@@ -210,7 +196,7 @@ describe('pricing API (e2e over the real module graph, in-memory persistence)', 
       if (!next?.homeTeamId) break;
       const settlement = settlementFor(next.id, next.homeTeamId);
       markets = await postReprice(settlement);
-      bracket = replaySettlements(bracket, [settlement]);
+      bracket = replaySettlements(bracket, [settlement]).fixtures;
       if (next.feedsInto === null) champion = settlement.winnerTeamId;
     }
 

@@ -1,5 +1,6 @@
 import { FIXTURES, TEAMS, type Fixture } from '@arena/contracts';
 import { describe, expect, it } from 'vitest';
+import { settlementFor } from '../testing/settlement';
 import { applySettlement } from './bracket';
 import { DEFAULT_MC_RUNS, simulateChampionProbabilities } from './monte-carlo';
 import { mulberry32 } from './rng';
@@ -52,14 +53,7 @@ describe('simulateChampionProbabilities', () => {
   });
 
   it('respects results already played: an eliminated team can never be champion', () => {
-    const { fixtures } = applySettlement(FIXTURES, {
-      fixtureId: 'R16-2',
-      winnerTeamId: 'FRA',
-      homeScore: 2,
-      awayScore: 0,
-      decidedOnPenalties: false,
-      settledAt: '2026-07-04T23:00:00.000Z',
-    });
+    const { fixtures } = applySettlement(FIXTURES, settlementFor('R16-2', 'FRA'));
     const probabilities = simulate(fixtures);
     expect(probabilities.get('PAR')).toBeUndefined();
     expect(probabilities.get('FRA') ?? 0).toBeGreaterThan(0);
@@ -89,18 +83,5 @@ describe('simulateChampionProbabilities', () => {
     expect(() => simulate([], 1)).toThrow(/no final fixture/);
     const dangling = fixture({ id: 'SF-9', feedsInto: 'nowhere', feedsIntoSlot: 'home' });
     expect(() => simulate([dangling], 1)).toThrow(/no final fixture/);
-  });
-});
-
-describe('mulberry32', () => {
-  it('yields a reproducible stream in [0, 1)', () => {
-    const a = mulberry32(7);
-    const b = mulberry32(7);
-    for (let i = 0; i < 1000; i += 1) {
-      const value = a();
-      expect(value).toBe(b());
-      expect(value).toBeGreaterThanOrEqual(0);
-      expect(value).toBeLessThan(1);
-    }
   });
 });

@@ -3,22 +3,11 @@ import { FIXTURES, MarketSchema, type Market, type SettlementEvent } from '@aren
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applySettlement } from '../domain/bracket';
 import { OUTRIGHT_MARKET_ID } from '../domain/market-builder';
+import { settlementFor } from '../testing/settlement';
 import type { MarketsRepository } from './markets.repository';
 import { PricingService, intFromEnv } from './pricing.service';
 
 const R16_2 = 'R16-2';
-const SETTLED_AT = '2026-07-04T23:00:00.000Z';
-
-function settlementFor(fixtureId: string, winnerTeamId: string): SettlementEvent {
-  return {
-    fixtureId,
-    winnerTeamId,
-    homeScore: 2,
-    awayScore: 0,
-    decidedOnPenalties: false,
-    settledAt: SETTLED_AT,
-  };
-}
 
 const R16_2_SETTLEMENT = settlementFor(R16_2, 'FRA');
 
@@ -58,6 +47,12 @@ describe('PricingService', () => {
     service = new PricingService(repository as unknown as MarketsRepository);
   });
 
+  /** Seed once and reset counters, so tests observe only their own writes. */
+  async function primeSeeded(): Promise<void> {
+    await service.refresh();
+    repository.saveReprice.mockClear();
+  }
+
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
@@ -84,6 +79,26 @@ describe('PricingService', () => {
       'Market seeding failed — is the database reachable?',
       expect.any(Error)
     );
+  });
+
+  it('re-establishes the seed lazily after a failed boot (no empty board forever)', async () => {
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    repository.saveReprice.mockRejectedValueOnce(new Error('db down at boot'));
+    await service.onModuleInit(); // swallowed
+    await service.getMarkets(); // first read retries the seed
+    expect(repository.saveReprice).toHaveBeenCalledTimes(2);
+    repository.saveReprice.mockClear();
+    await service.getMarkets(); // seeded now — no further writes
+    expect(repository.saveReprice).not.toHaveBeenCalled();
+  });
+
+  it('warns about and skips recorded settlements that no longer fit the bracket', async () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    repository.listSettlements.mockResolvedValue([settlementFor('OLD-99', 'FRA')]);
+    await service.onModuleInit();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('OLD-99'));
+    const [, markets] = repository.saveReprice.mock.calls[0] as [null, Market[]];
+    expect(markets).toHaveLength(13); // the stale row did not wedge the seed
   });
 
   it('lists markets in bracket order with the outright last', async () => {
@@ -115,6 +130,7 @@ describe('PricingService', () => {
   });
 
   it('applies a settlement: settles the market, advances the bracket, reprices the outright', async () => {
+    await primeSeeded();
     const sentinel = [{ id: R16_2, fixtureId: R16_2 } as Market];
     repository.findAll.mockResolvedValue(sentinel);
     const result = await service.reprice({ settlement: R16_2_SETTLEMENT });
@@ -144,6 +160,7 @@ describe('PricingService', () => {
   });
 
   it('treats a retry of an applied settlement as an idempotent read', async () => {
+    await primeSeeded();
     repository.listSettlements.mockResolvedValue([R16_2_SETTLEMENT]);
     await service.reprice({ settlement: R16_2_SETTLEMENT });
     expect(repository.saveReprice).not.toHaveBeenCalled();
@@ -169,6 +186,7 @@ describe('PricingService', () => {
   });
 
   it('settles the outright with the champion once the final is played', async () => {
+    await primeSeeded();
     const events = playAllSettlements();
     const finale = events[events.length - 1];
     repository.listSettlements.mockResolvedValue(events.slice(0, -1));
@@ -202,5 +220,17 @@ describe('intFromEnv', () => {
     expect(intFromEnv('MC_TEST_BAD', 42)).toBe(42);
     vi.stubEnv('MC_TEST_NEGATIVE', '-3');
     expect(intFromEnv('MC_TEST_NEGATIVE', 42)).toBe(42);
+    vi.stubEnv('MC_TEST_ZERO', '0');
+    expect(intFromEnv('MC_TEST_ZERO', 42)).toBe(42);
+  });
+
+  it('rejects partial parses instead of silently truncating them', () => {
+    // parseInt would read '1e5' as 1 — one Monte Carlo run instead of 100,000.
+    vi.stubEnv('MC_TEST_SCI', '1e5');
+    expect(intFromEnv('MC_TEST_SCI', 42)).toBe(42);
+    vi.stubEnv('MC_TEST_UNDERSCORE', '10_000');
+    expect(intFromEnv('MC_TEST_UNDERSCORE', 42)).toBe(42);
+    vi.stubEnv('MC_TEST_DECIMAL', '10.5');
+    expect(intFromEnv('MC_TEST_DECIMAL', 42)).toBe(42);
   });
 });

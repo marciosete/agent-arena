@@ -1,5 +1,6 @@
-import { FIXTURES, type Fixture, type SettlementEvent } from '@arena/contracts';
+import { FIXTURES, type Fixture } from '@arena/contracts';
 import { describe, expect, it } from 'vitest';
+import { settlementFor as settle } from '../testing/settlement';
 import {
   SettlementError,
   aliveTeams,
@@ -12,17 +13,6 @@ import {
 const R16_2 = 'R16-2';
 const QF_1 = 'QF-1';
 const FRA = 'FRA';
-
-function settle(fixtureId: string, winnerTeamId: string, scores = [2, 0]): SettlementEvent {
-  return {
-    fixtureId,
-    winnerTeamId,
-    homeScore: scores[0],
-    awayScore: scores[1],
-    decidedOnPenalties: false,
-    settledAt: '2026-07-04T23:00:00.000Z',
-  };
-}
 
 function byId(fixtures: Fixture[], id: string): Fixture {
   const fixture = fixtures.find((candidate) => candidate.id === id);
@@ -81,12 +71,57 @@ describe('applySettlement', () => {
 });
 
 describe('replaySettlements', () => {
-  it('rebuilds the bracket from recorded events in order', () => {
-    const fixtures = replaySettlements(FIXTURES, [settle('R16-1', 'MAR'), settle(R16_2, FRA)]);
+  it('rebuilds the bracket from recorded events', () => {
+    const { fixtures, skipped } = replaySettlements(FIXTURES, [
+      settle('R16-1', 'MAR'),
+      settle(R16_2, FRA),
+    ]);
     const quarterFinal = byId(fixtures, QF_1);
+    expect(skipped).toEqual([]);
     expect(quarterFinal.homeTeamId).toBe('MAR');
     expect(quarterFinal.awayTeamId).toBe(FRA);
     expect(priceableFixtures(fixtures).map((fixture) => fixture.id)).toContain(QF_1);
+  });
+
+  it('is order-insensitive: a dependent result recorded before its feeders still applies', () => {
+    const { fixtures, skipped } = replaySettlements(FIXTURES, [
+      settle(QF_1, 'MAR'), // depends on the two events below
+      settle('R16-1', 'MAR'),
+      settle(R16_2, FRA),
+    ]);
+    expect(skipped).toEqual([]);
+    expect(byId(fixtures, QF_1).status).toBe('finished');
+    expect(byId(fixtures, QF_1).winnerTeamId).toBe('MAR');
+    expect(byId(fixtures, 'SF-1').homeTeamId).toBe('MAR');
+  });
+
+  it('skips stale events instead of failing (a re-seeded bracket must not wedge the service)', () => {
+    const stale = settle('OLD-99', FRA);
+    const { fixtures, skipped } = replaySettlements(FIXTURES, [stale, settle(R16_2, FRA)]);
+    expect(skipped).toEqual([stale]);
+    expect(byId(fixtures, R16_2).status).toBe('finished');
+  });
+
+  it('skips a conflicting duplicate and keeps the first recorded winner', () => {
+    const conflicting = settle(R16_2, 'PAR');
+    const { fixtures, skipped } = replaySettlements(FIXTURES, [settle(R16_2, FRA), conflicting]);
+    expect(skipped).toEqual([conflicting]);
+    expect(byId(fixtures, R16_2).winnerTeamId).toBe(FRA);
+  });
+
+  it('treats an exact duplicate event as a no-op, not a skip', () => {
+    const { fixtures, skipped } = replaySettlements(FIXTURES, [
+      settle(R16_2, FRA),
+      settle(R16_2, FRA),
+    ]);
+    expect(skipped).toEqual([]);
+    expect(byId(fixtures, R16_2).status).toBe('finished');
+  });
+
+  it('only tolerates settlement errors — unexpected failures propagate', () => {
+    expect(() => replaySettlements(null as unknown as Fixture[], [settle(R16_2, FRA)])).toThrow(
+      TypeError
+    );
   });
 });
 
