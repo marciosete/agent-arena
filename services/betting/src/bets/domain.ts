@@ -8,6 +8,14 @@ import type { Market, Selection } from '@arena/contracts';
  */
 export const PRICE_TOLERANCE = 0.05;
 
+/**
+ * Money moves in cents: stakes are quantised with {@link roundMoney} before
+ * they touch a wallet, and anything smaller than one cent is not a bet — a
+ * sub-cent stake would round its payout to 0, which is unrepresentable
+ * (BetSchema requires a positive potentialReturn).
+ */
+export const MIN_STAKE = 0.01;
+
 /** The fixed id of the tournament-winner market (integration.md §3). */
 const OUTRIGHT_MARKET_ID = 'outright';
 
