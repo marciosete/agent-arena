@@ -136,19 +136,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ── Deploy: gated on ALL lanes, main pushes only ──────────────────────────
+  # ── Deploy: six independent services, each gated on ALL lanes, main only ──
   # Vercel git auto-deploy is disabled (apps/*/vercel.json) and Render
-  # auto-deploy is off — these two jobs are the sole path to production, so
-  # "no green, no deploy" is enforced by the pipeline, not by each platform.
-  deploy-frontends:
-    name: Deploy Frontends (Vercel)
+  # auto-deploy is off — these jobs are the sole path to production, so
+  # "no green, no deploy" is enforced by the pipeline. One matrix leg per
+  # service: independent nodes, parallel, independently retryable.
+  deploy-frontend:
+    name: Deploy ${{ matrix.app.name }} (Vercel)
     runs-on: ubuntu-latest
     needs: [lint-format, typecheck, architecture, test, yaml, sonar, secrets]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - { name: punter-web, projectId: prj_YKTWnj59IvAXUaVowdoJLr8qaIlk }
+          - { name: trader-ops, projectId: prj_LuT4YqcHQ6BneNBHh3mD7kwgajbC }
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: team_6l5x9txAMxriUA8f67Ilkox1
+      VERCEL_PROJECT_ID: ${{ matrix.app.projectId }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -156,9 +164,9 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Skip notice (no VERCEL_TOKEN secret yet)
+      - name: Skip notice (no VERCEL_TOKEN secret)
         if: env.VERCEL_TOKEN == ''
-        run: echo "VERCEL_TOKEN secret not configured — skipping frontend deploys."
+        run: echo "VERCEL_TOKEN not configured — skipping ${{ matrix.app.name }} deploy."
 
       - name: Use npm 11 (lockfile is written by npm 11)
         if: env.VERCEL_TOKEN != ''
@@ -167,74 +175,62 @@ jobs:
       # Install here, where it provably works (same as the test job):
       # postinstall compiles contracts and generates the prisma clients.
       # Vercel's own install phase is configured as a script-less no-op.
-      - name: Install Dependencies
+      - name: Install dependencies
         if: env.VERCEL_TOKEN != ''
         run: npm ci
 
       # Prebuilt pattern: build in THIS runner (the same env the gates just
       # proved green), upload only the output — no remote build to go wrong.
-      - name: Build & deploy punter-web
+      - name: Build & deploy ${{ matrix.app.name }}
         if: env.VERCEL_TOKEN != ''
-        env:
-          VERCEL_PROJECT_ID: prj_YKTWnj59IvAXUaVowdoJLr8qaIlk
         run: |
           rm -rf .vercel
           npx vercel@48 pull --yes --environment=production --token "$VERCEL_TOKEN"
           npx vercel@48 build --prod --yes --token "$VERCEL_TOKEN"
           npx vercel@48 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN"
 
-      - name: Build & deploy trader-ops
-        if: env.VERCEL_TOKEN != ''
-        env:
-          VERCEL_PROJECT_ID: prj_LuT4YqcHQ6BneNBHh3mD7kwgajbC
-        run: |
-          rm -rf .vercel
-          npx vercel@48 pull --yes --environment=production --token "$VERCEL_TOKEN"
-          npx vercel@48 build --prod --yes --token "$VERCEL_TOKEN"
-          npx vercel@48 deploy --prebuilt --prod --yes --token "$VERCEL_TOKEN"
-
-  deploy-backends:
-    name: Deploy Backends (Render)
+  deploy-backend:
+    name: Deploy ${{ matrix.svc.name }} (Render)
     runs-on: ubuntu-latest
     needs: [lint-format, typecheck, architecture, test, yaml, sonar, secrets]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        svc:
+          - { name: pricing, id: srv-d92rdbtaeets73aht15g }
+          - { name: betting, id: srv-d92rdbtaeets73aht170 }
+          - { name: simulator, id: srv-d92rdbtaeets73aht190 }
+          - { name: flags, id: srv-d92rdbtaeets73aht1a0 }
     env:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      SERVICE_ID: ${{ matrix.svc.id }}
+      SERVICE_NAME: ${{ matrix.svc.name }}
     steps:
-      - name: Skip notice (no RENDER_API_KEY secret yet)
+      - name: Skip notice (no RENDER_API_KEY secret)
         if: env.RENDER_API_KEY == ''
-        run: echo "RENDER_API_KEY secret not configured — skipping backend deploys."
+        run: echo "RENDER_API_KEY not configured — skipping ${{ matrix.svc.name }} deploy."
 
       # Render auto-deploy is off; the pipeline is the gate. Trigger a deploy of
-      # the just-verified commit for each service and wait until it goes live.
-      - name: Trigger & await Render deploys
+      # the just-verified commit and wait until it reports live.
+      - name: Trigger & await Render deploy
         if: env.RENDER_API_KEY != ''
         run: |
           set -euo pipefail
-          services="pricing:srv-d92rdbtaeets73aht15g betting:srv-d92rdbtaeets73aht170 simulator:srv-d92rdbtaeets73aht190 flags:srv-d92rdbtaeets73aht1a0"
-          deploys=""
-          for entry in $services; do
-            name="${entry%%:*}"; id="${entry#*:}"
-            dep=$(curl -sf -X POST "https://api.render.com/v1/services/$id/deploys" \
-              -H "Authorization: Bearer $RENDER_API_KEY" \
-              -H "Content-Type: application/json" -d "{\"commitId\": \"$GITHUB_SHA\"}" \
-              | jq -r '.id')
-            echo "$name: triggered deploy $dep"
-            deploys="$deploys $name:$id:$dep"
+          dep=$(curl -sf -X POST "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" -d "{\"commitId\": \"$GITHUB_SHA\"}" \
+            | jq -r '.id')
+          echo "$SERVICE_NAME: triggered deploy $dep"
+          for _ in $(seq 1 90); do
+            st=$(curl -sf "https://api.render.com/v1/services/$SERVICE_ID/deploys/$dep" \
+              -H "Authorization: Bearer $RENDER_API_KEY" | jq -r '.status')
+            case "$st" in
+              live) echo "$SERVICE_NAME: live"; exit 0;;
+              build_failed|update_failed|canceled|pre_deploy_failed)
+                echo "$SERVICE_NAME: FAILED ($st)"; exit 1;;
+              *) sleep 10;;
+            esac
           done
-          fail=0
-          for entry in $deploys; do
-            name="${entry%%:*}"; rest="${entry#*:}"; id="${rest%%:*}"; dep="${rest#*:}"
-            for _ in $(seq 1 60); do
-              st=$(curl -sf "https://api.render.com/v1/services/$id/deploys/$dep" \
-                -H "Authorization: Bearer $RENDER_API_KEY" | jq -r '.status')
-              case "$st" in
-                live) echo "$name: live"; break;;
-                build_failed|update_failed|canceled|pre_deploy_failed)
-                  echo "$name: FAILED ($st)"; fail=1; break;;
-                *) sleep 10;;
-              esac
-            done
-          done
-          exit $fail
+          echo "$SERVICE_NAME: timed out waiting for live"; exit 1
