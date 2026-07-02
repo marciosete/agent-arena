@@ -8,7 +8,14 @@ interface FakePlayer extends RoundPlayer {
 }
 
 function fakePlayer(name: string, token: string | null = 'tok'): FakePlayer {
-  const snapshot: LeagueRow = { emoji: '🤖', name, balance: 10_000, openBets: 0, pnl: 0 };
+  const snapshot: LeagueRow = {
+    emoji: '🤖',
+    name,
+    provisioned: true,
+    balance: 10_000,
+    openBets: 0,
+    pnl: 0,
+  };
   return {
     token,
     rounds: 0,
@@ -70,12 +77,44 @@ describe('Runner', () => {
     await vi.advanceTimersByTimeAsync(0);
     bindSigint(runner, (line) => logs.push(line), proc);
     proc.emit('SIGINT');
+    await vi.advanceTimersByTimeAsync(0); // let shutdown drain
 
     const roundsAtSigint = players[0].rounds;
     await vi.advanceTimersByTimeAsync(5_000); // loop is stopped — no further rounds
     expect(players[0].rounds).toBe(roundsAtSigint);
     expect(logs.some((line) => line.includes('final standings'))).toBe(true);
     expect(logs.filter((line) => line.includes('League table')).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('lets an in-flight round finish before printing final standings', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const slow: RoundPlayer = {
+      token: null,
+      playRound: () => gate,
+      snapshot: () => ({
+        emoji: '🐢',
+        name: 'Slow',
+        provisioned: true,
+        balance: 0,
+        openBets: 0,
+        pnl: 0,
+      }),
+    };
+    const { runner, logs } = makeRunner([slow]);
+    const proc = new EventEmitter();
+
+    const inFlight = runner.playRound();
+    bindSigint(runner, (line) => logs.push(line), proc);
+    proc.emit('SIGINT'); // arrives mid-round
+    release();
+    await inFlight;
+    await vi.advanceTimersByTimeAsync(0);
+
+    const roundTable = logs.findIndex((line) => line.includes('League table'));
+    const finalMarker = logs.findIndex((line) => line.includes('final standings'));
+    expect(roundTable).toBeGreaterThanOrEqual(0);
+    expect(finalMarker).toBeGreaterThan(roundTable); // final table prints LAST
   });
 
   it('skips a tick while the previous round is still in flight', async () => {
@@ -88,7 +127,14 @@ describe('Runner', () => {
         rounds += 1;
         await gate;
       },
-      snapshot: () => ({ emoji: '🐢', name: 'Slow', balance: 0, openBets: 0, pnl: 0 }),
+      snapshot: () => ({
+        emoji: '🐢',
+        name: 'Slow',
+        provisioned: true,
+        balance: 0,
+        openBets: 0,
+        pnl: 0,
+      }),
     };
     const { runner } = makeRunner([slow]);
     const first = runner.playRound();
@@ -121,7 +167,14 @@ describe('Runner', () => {
       playRound: async () => {
         throw new Error('kaboom');
       },
-      snapshot: () => ({ emoji: '💣', name: 'Boom', balance: 0, openBets: 0, pnl: 0 }),
+      snapshot: () => ({
+        emoji: '💣',
+        name: 'Boom',
+        provisioned: true,
+        balance: 0,
+        openBets: 0,
+        pnl: 0,
+      }),
     };
     const { runner, logs } = makeRunner([explosive]);
     runner.start();

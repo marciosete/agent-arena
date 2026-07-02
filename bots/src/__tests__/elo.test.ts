@@ -16,4 +16,12 @@ describe('eloWinProbability', () => {
     expect(p).toBeGreaterThan(0.5);
     expect(p + q).toBeCloseTo(1, 10);
   });
+
+  it('steepens with a smaller divisor — the same gap means a stronger favourite', () => {
+    const classic = eloWinProbability(2100, 1750);
+    const steep = eloWinProbability(2100, 1750, 250);
+    expect(steep).toBeGreaterThan(classic);
+    expect(steep).toBeCloseTo(0.9617, 3);
+    expect(eloWinProbability(1850, 1850, 250)).toBe(0.5); // coin flips stay coin flips
+  });
 });

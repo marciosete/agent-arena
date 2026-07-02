@@ -7,6 +7,14 @@ import type { IntendedBet, Strategy } from './types';
 /** Never risk more than 10% of the bankroll on one price, however juicy. */
 export const SHARP_KELLY_CAP = 0.1;
 
+/**
+ * Sharp's own curve is steeper than the bookmaker's textbook 400: he
+ * believes class tells more than the market does. That disagreement is
+ * where his edges come from — a same-model bettor would never beat the
+ * overround.
+ */
+export const SHARP_ELO_DIVISOR = 250;
+
 /** TEAMS is frozen seed data — build the name → elo join once, not per round. */
 const ELO_BY_NAME = new Map(TEAMS.map((team) => [team.name, team.elo]));
 
@@ -32,8 +40,8 @@ export const sharp: Strategy = (markets, bankroll, history) => {
     if (homeElo === undefined || awayElo === undefined) continue;
 
     const sides = [
-      { selection: home, probability: eloWinProbability(homeElo, awayElo) },
-      { selection: away, probability: eloWinProbability(awayElo, homeElo) },
+      { selection: home, probability: eloWinProbability(homeElo, awayElo, SHARP_ELO_DIVISOR) },
+      { selection: away, probability: eloWinProbability(awayElo, homeElo, SHARP_ELO_DIVISOR) },
     ];
     for (const { selection, probability } of sides) {
       const edge = probability * selection.price - 1;

@@ -16,10 +16,19 @@ afterEach(() => {
 
 describe('requestJson', () => {
   it('degrades gracefully when the service is down (connection refused)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed: ECONNREFUSED')));
+    // The real undici shape: bare 'fetch failed' with the reason in cause.
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockRejectedValue(
+          new TypeError('fetch failed', { cause: new Error('connect ECONNREFUSED 127.0.0.1:4002') })
+        )
+    );
     const result = failure(await requestJson(schema, URL));
     expect(result.kind).toBe('network');
     expect(result.message).toContain('unreachable');
+    expect(result.message).toContain('ECONNREFUSED'); // the cause is surfaced, not dropped
   });
 
   it('degrades gracefully on a 4xx without throwing', async () => {
@@ -53,11 +62,25 @@ describe('requestJson', () => {
     expect(result.message).toContain('ok');
   });
 
-  it('returns parsed data on success and labels requests by method', async () => {
+  it('returns parsed data and always arms an abort timeout so a hung upstream cannot stall the loop', async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ ok: true }));
     vi.stubGlobal('fetch', fetchMock);
     const result = await requestJson(schema, URL, { method: 'POST' });
     expect(result).toEqual({ ok: true, data: { ok: true } });
-    expect(fetchMock).toHaveBeenCalledWith(URL, { method: 'POST' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      URL,
+      expect.objectContaining({ method: 'POST', signal: expect.any(AbortSignal) })
+    );
+  });
+
+  it('lets a caller-supplied signal override the default timeout', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    const controller = new AbortController();
+    await requestJson(schema, URL, { signal: controller.signal });
+    expect(fetchMock).toHaveBeenCalledWith(
+      URL,
+      expect.objectContaining({ signal: controller.signal })
+    );
   });
 });

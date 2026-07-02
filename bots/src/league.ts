@@ -22,7 +22,7 @@ function signedMoney(value: number): string {
  * selector that padEnd would count, skewing every column after it.
  */
 function padLabel(label: string, width: number): string {
-  const visible = [...label.replace(/️/gu, '')].length;
+  const visible = [...label.replace(/\u{FE0F}/gu, '')].length;
   return label + ' '.repeat(Math.max(0, width - visible));
 }
 

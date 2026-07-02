@@ -4,6 +4,7 @@ import { formatLeagueTable, type LeagueRow } from '../league';
 const row = (overrides: Partial<LeagueRow>): LeagueRow => ({
   emoji: '🤖',
   name: 'Bot',
+  provisioned: true,
   balance: 10_000,
   openBets: 0,
   pnl: 0,
@@ -27,6 +28,29 @@ describe('formatLeagueTable', () => {
     expect(lines[2]).toContain('+$0.00');
     expect(lines[3]).toContain('3. 🤖 Chaser');
     expect(lines[3]).toContain('-$6,800.00');
+  });
+
+  it('shows unprovisioned bots without a fabricated balance, ranked last', () => {
+    const table = formatLeagueTable([
+      row({ name: 'Ghost', provisioned: false }),
+      row({ name: 'Sharp', balance: 9_000, pnl: -1_000 }),
+    ]);
+    const lines = table.split('\n');
+    expect(lines[1]).toContain('Sharp');
+    expect(lines[2]).toContain('Ghost');
+    expect(lines[2]).toContain('(no account yet)');
+    expect(lines[2]).not.toContain('$');
+  });
+
+  it('aligns columns even when an emoji carries a variation selector', () => {
+    // 🛡️ is 3 UTF-16 units (VS16), 🔥 is 2 — the $ column must still line up.
+    const table = formatLeagueTable([
+      row({ emoji: '🛡️', name: 'Steady', balance: 5_000, pnl: -5_000 }),
+      row({ emoji: '🔥', name: 'Chaser', balance: 5_000, pnl: -5_000 }),
+    ]);
+    const lines = table.split('\n').slice(1);
+    const dollarColumns = lines.map((line) => line.replace(/\u{FE0F}/gu, '').indexOf('$'));
+    expect(dollarColumns[0]).toBe(dollarColumns[1]);
   });
 
   it('does not mutate the caller’s row order', () => {

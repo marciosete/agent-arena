@@ -3,13 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Bot, type BotSpec } from '../bot';
 import { ArenaClient } from '../client';
 import type { IntendedBet, Strategy } from '../strategies/types';
-import { account, ACCOUNT_ID, bet } from './fixtures';
+import { account, ACCOUNT_ID, bet, headersOf, TEST_URLS } from './fixtures';
 
-const URLS = {
-  pricing: 'http://price.test',
-  betting: 'http://bet.test',
-  simulator: 'http://sim.test',
-};
 const ADMIN_KEY = 'test-admin-key';
 const TOKEN = 'bot-token';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -28,11 +23,12 @@ type Routes = Record<string, (init?: RequestInit) => Response>;
 /** Happy-path platform: provision, account, bets, markets, bet acceptance. */
 function platformRoutes(overrides: Routes = {}): Routes {
   return {
-    [`POST ${URLS.betting}/accounts`]: () => Response.json({ token: TOKEN, account: account() }),
-    [`GET ${URLS.betting}/accounts/${ACCOUNT_ID}`]: () => Response.json(account()),
-    [`GET ${URLS.betting}/bets?accountId=${ACCOUNT_ID}`]: () => Response.json([]),
-    [`GET ${URLS.pricing}/markets`]: () => Response.json([]),
-    [`POST ${URLS.betting}/bets`]: () =>
+    [`POST ${TEST_URLS.betting}/accounts`]: () =>
+      Response.json({ token: TOKEN, account: account() }),
+    [`GET ${TEST_URLS.betting}/accounts/${ACCOUNT_ID}`]: () => Response.json(account()),
+    [`GET ${TEST_URLS.betting}/bets?accountId=${ACCOUNT_ID}`]: () => Response.json([]),
+    [`GET ${TEST_URLS.pricing}/markets`]: () => Response.json([]),
+    [`POST ${TEST_URLS.betting}/bets`]: () =>
       Response.json(bet({ stake: intent.stake, price: intent.price, potentialReturn: 1300 })),
     ...overrides,
   };
@@ -53,7 +49,7 @@ function stubPlatform(routes: Routes) {
 
 function makeBot(strategy: Strategy, spec: Partial<BotSpec> = {}) {
   const logs: string[] = [];
-  const client = new ArenaClient(URLS, ADMIN_KEY);
+  const client = new ArenaClient(TEST_URLS, ADMIN_KEY);
   const bot = new Bot({ name: 'Sharp', emoji: '📐', strategy, ...spec }, client, (line) =>
     logs.push(line)
   );
@@ -62,10 +58,6 @@ function makeBot(strategy: Strategy, spec: Partial<BotSpec> = {}) {
 
 function requestBody(call: { init?: RequestInit }): Record<string, unknown> {
   return JSON.parse(String(call.init?.body));
-}
-
-function requestHeaders(call: { init?: RequestInit }): Record<string, string> {
-  return (call.init?.headers ?? {}) as Record<string, string>;
 }
 
 afterEach(() => {
@@ -80,16 +72,16 @@ describe('Bot', () => {
     await bot.playRound();
 
     // Provisioning: admin-keyed, isBot body, and no bearer — it IS the auth step.
-    const provision = calls.find((c) => c.key === `POST ${URLS.betting}/accounts`);
+    const provision = calls.find((c) => c.key === `POST ${TEST_URLS.betting}/accounts`);
     expect(provision).toBeDefined();
-    expect(requestHeaders(provision!)['x-admin-key']).toBe(ADMIN_KEY);
-    expect(requestHeaders(provision!).authorization).toBeUndefined();
+    expect(headersOf(provision!)['x-admin-key']).toBe(ADMIN_KEY);
+    expect(headersOf(provision!).authorization).toBeUndefined();
     expect(requestBody(provision!)).toEqual({ name: 'Sharp', isBot: true });
 
     // The bet reuses the provisioned token and carries an idempotency key but NO accountId.
-    const placed = calls.find((c) => c.key === `POST ${URLS.betting}/bets`);
+    const placed = calls.find((c) => c.key === `POST ${TEST_URLS.betting}/bets`);
     expect(placed).toBeDefined();
-    expect(requestHeaders(placed!).authorization).toBe(`Bearer ${TOKEN}`);
+    expect(headersOf(placed!).authorization).toBe(`Bearer ${TOKEN}`);
     const body = requestBody(placed!);
     expect(body).not.toHaveProperty('accountId');
     expect(body.idempotencyKey).toMatch(UUID_RE);
@@ -109,19 +101,37 @@ describe('Bot', () => {
     await bot.playRound();
     await bot.playRound();
 
-    const provisions = calls.filter((c) => c.key === `POST ${URLS.betting}/accounts`);
+    const provisions = calls.filter((c) => c.key === `POST ${TEST_URLS.betting}/accounts`);
     expect(provisions).toHaveLength(1);
     const keys = calls
-      .filter((c) => c.key === `POST ${URLS.betting}/bets`)
+      .filter((c) => c.key === `POST ${TEST_URLS.betting}/bets`)
       .map((c) => requestBody(c).idempotencyKey);
     expect(keys).toHaveLength(2);
     expect(keys[0]).not.toBe(keys[1]);
   });
 
+  it('re-provisions after a 401: an expired session is dropped, not reused forever', async () => {
+    const calls = stubPlatform(
+      platformRoutes({
+        [`GET ${TEST_URLS.betting}/accounts/${ACCOUNT_ID}`]: () =>
+          new Response('unauthorized', { status: 401 }),
+      })
+    );
+    const { bot, logs } = makeBot(() => []);
+
+    await bot.playRound(); // 401 → session dropped
+    expect(logs.some((line) => line.includes('session expired'))).toBe(true);
+    expect(bot.token).toBeNull();
+
+    await bot.playRound(); // checks in again with the admin key
+    const provisions = calls.filter((c) => c.key === `POST ${TEST_URLS.betting}/accounts`);
+    expect(provisions).toHaveLength(2);
+  });
+
   it('treats a 409 (price moved) as a normal skip, not a crash', async () => {
     stubPlatform(
       platformRoutes({
-        [`POST ${URLS.betting}/bets`]: () => new Response('price moved', { status: 409 }),
+        [`POST ${TEST_URLS.betting}/bets`]: () => new Response('price moved', { status: 409 }),
       })
     );
     const { bot, logs } = makeBot(() => [intent]);
@@ -134,7 +144,8 @@ describe('Bot', () => {
   it('logs a rejected bet (non-409) and moves on', async () => {
     stubPlatform(
       platformRoutes({
-        [`POST ${URLS.betting}/bets`]: () => new Response('insufficient funds', { status: 400 }),
+        [`POST ${TEST_URLS.betting}/bets`]: () =>
+          new Response('insufficient funds', { status: 400 }),
       })
     );
     const { bot, logs } = makeBot(() => [intent]);
@@ -146,8 +157,8 @@ describe('Bot', () => {
 
   it('waits patiently when betting is not up yet (provision refused)', async () => {
     const calls = stubPlatform({
-      [`POST ${URLS.betting}/accounts`]: () => {
-        throw new TypeError('fetch failed: ECONNREFUSED');
+      [`POST ${TEST_URLS.betting}/accounts`]: () => {
+        throw new TypeError('fetch failed', { cause: new Error('connect ECONNREFUSED') });
       },
     });
     const { bot, logs } = makeBot(() => [intent]);
@@ -156,14 +167,14 @@ describe('Bot', () => {
     expect(calls).toHaveLength(1); // stopped at provisioning; no other calls
     expect(logs.some((line) => line.includes('waiting for betting'))).toBe(true);
     expect(bot.token).toBeNull();
-    expect(bot.snapshot()).toMatchObject({ balance: OPENING_BALANCE, pnl: 0 });
+    expect(bot.snapshot()).toMatchObject({ provisioned: false, balance: OPENING_BALANCE, pnl: 0 });
   });
 
   it('skips the round when balance, history or markets cannot be fetched', async () => {
     const failures = [
-      `GET ${URLS.betting}/accounts/${ACCOUNT_ID}`,
-      `GET ${URLS.betting}/bets?accountId=${ACCOUNT_ID}`,
-      `GET ${URLS.pricing}/markets`,
+      `GET ${TEST_URLS.betting}/accounts/${ACCOUNT_ID}`,
+      `GET ${TEST_URLS.betting}/bets?accountId=${ACCOUNT_ID}`,
+      `GET ${TEST_URLS.pricing}/markets`,
     ];
     for (const failing of failures) {
       const calls = stubPlatform(
@@ -171,7 +182,7 @@ describe('Bot', () => {
       );
       const { bot } = makeBot(() => [intent]);
       await expect(bot.playRound()).resolves.toBeUndefined();
-      expect(calls.some((c) => c.key === `POST ${URLS.betting}/bets`)).toBe(false);
+      expect(calls.some((c) => c.key === `POST ${TEST_URLS.betting}/bets`)).toBe(false);
       vi.unstubAllGlobals();
     }
   });
@@ -186,9 +197,9 @@ describe('Bot', () => {
   it('reports live balance, open bets and P&L in its snapshot', async () => {
     stubPlatform(
       platformRoutes({
-        [`GET ${URLS.betting}/accounts/${ACCOUNT_ID}`]: () =>
+        [`GET ${TEST_URLS.betting}/accounts/${ACCOUNT_ID}`]: () =>
           Response.json(account({ balance: 12_345.5 })),
-        [`GET ${URLS.betting}/bets?accountId=${ACCOUNT_ID}`]: () =>
+        [`GET ${TEST_URLS.betting}/bets?accountId=${ACCOUNT_ID}`]: () =>
           Response.json([bet(), bet({ status: 'lost', settledAt: '2026-07-03T10:00:00.000Z' })]),
       })
     );
@@ -197,6 +208,7 @@ describe('Bot', () => {
     expect(bot.snapshot()).toEqual({
       emoji: '📐',
       name: 'Sharp',
+      provisioned: true,
       balance: 12_345.5,
       openBets: 1,
       pnl: 2_345.5,

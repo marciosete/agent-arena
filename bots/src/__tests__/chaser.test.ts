@@ -40,6 +40,13 @@ describe('chaser', () => {
     expect(chaser(board(), 10_000, shuffled)[0].stake).toBe(CHASER_BASE_STAKE * 4);
   });
 
+  it('resets when a win lands in the same settlement batch as a loss', () => {
+    // One POST /settle stamps every affected bet with the same settledAt.
+    const t = '2026-07-03T12:00:00.000Z';
+    expect(lossStreak([lost('x1', t), won('x2', t)])).toBe(0);
+    expect(lossStreak([won('x2', t), lost('x1', t)])).toBe(0); // order-independent
+  });
+
   it('goes all-in when the double outgrows the bankroll', () => {
     const threeLosses = [
       lost('x1', '2026-07-03T10:00:00.000Z'),

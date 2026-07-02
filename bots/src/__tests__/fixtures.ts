@@ -6,6 +6,16 @@ export const ACCOUNT_ID = '11111111-1111-4111-8111-111111111111';
 export const BET_ID = '22222222-2222-4222-8222-222222222222';
 export const NOW = '2026-07-03T12:00:00.000Z';
 
+export const TEST_URLS = {
+  pricing: 'http://price.test',
+  betting: 'http://bet.test',
+  simulator: 'http://sim.test',
+};
+
+export function headersOf(call: { init?: RequestInit }): Record<string, string> {
+  return (call.init?.headers ?? {}) as Record<string, string>;
+}
+
 export function matchMarket(
   id: string,
   home: { name: string; price: number },

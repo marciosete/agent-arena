@@ -2,18 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { sharp } from '../strategies/sharp';
 import { bet, matchMarket } from './fixtures';
 
-// Real TEAMS elo: France 2100, Paraguay 1750 → p(France) ≈ 0.8823, fair ≈ 1.13.
-// Canada 1850, Mexico 1850 → p = 0.5, fair = 2.00.
+// Real TEAMS elo, through Sharp's steep 250-divisor book:
+//   France 2100 vs Paraguay 1750 → p(France) ≈ 0.962, fair ≈ 1.04.
+//   Canada 1850 vs Mexico 1850   → p = 0.5 (any divisor), fair = 2.00.
 const franceValue = () =>
   matchMarket('f1', { name: 'France', price: 1.3 }, { name: 'Paraguay', price: 6.0 });
 
 describe('sharp', () => {
   it("bets only when his fair price beats the market's", () => {
-    // France at 1.10 is below Sharp's ≈1.13 fair price — no bet anywhere.
+    // France at 1.03 is below Sharp's ≈1.04 fair price — no bet anywhere.
     const noValue = matchMarket(
       'f1',
-      { name: 'France', price: 1.1 },
-      { name: 'Paraguay', price: 6.0 }
+      { name: 'France', price: 1.03 },
+      { name: 'Paraguay', price: 9.0 }
     );
     expect(sharp([noValue], 10_000, [])).toEqual([]);
 
@@ -26,7 +27,7 @@ describe('sharp', () => {
   });
 
   it('caps the Kelly stake at 10% of the bankroll', () => {
-    // Raw Kelly on France @ 1.30 is ≈49% of bankroll — the cap holds it at 10%.
+    // Raw Kelly on France @ 1.30 is ≈83% of bankroll — the cap holds it at 10%.
     const [intent] = sharp([franceValue()], 10_000, []);
     expect(intent.stake).toBe(1_000);
   });
@@ -50,7 +51,7 @@ describe('sharp', () => {
       { name: 'Mexico', price: 1.7 }
     );
     const [intent] = sharp([coinFlip, franceValue()], 10_000, []);
-    expect(intent.selectionName).toBe('France'); // 14.7% edge beats 5%
+    expect(intent.selectionName).toBe('France'); // 25% edge beats 5%
   });
 
   it('skips selections that do not match a real team by name', () => {
