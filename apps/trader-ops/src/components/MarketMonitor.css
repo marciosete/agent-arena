@@ -1,0 +1,10 @@
+.market-head td {
+  background: #ffffff08;
+  border-bottom-color: var(--line);
+  padding-top: 0.5rem;
+}
+
+.market-name {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}

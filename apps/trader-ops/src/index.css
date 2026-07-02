@@ -1,17 +1,32 @@
 :root {
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  /*
+   * Terminal palette. The status trio (good/warn/crit) was run through the
+   * dataviz six-checks validator against the panel surface: contrast ≥3:1,
+   * CVD separation ΔE ≥15, chroma clear. Color never carries meaning alone —
+   * values are printed, moves get ▲/▼ glyphs, statuses get text chips.
+   */
+  --bg: #0b0e13;
+  --panel: #10141b;
+  --raised: #161c26;
+  --line: #1e2634;
+  --ink: #e8ecf1;
+  --ink-2: #8b94a3;
+  --ink-3: #566070;
+  --accent: #ffb454;
+  --good: #31c168;
+  --warn: #fab219;
+  --crit: #ff5d5d;
+
+  --font-data:
+    ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-display: 'Avenir Next Condensed', 'Helvetica Neue', 'Arial Narrow', sans-serif;
+
+  font-family: var(--font-data);
+  font-size: 13px;
+  line-height: 1.45;
   color-scheme: dark;
-  color: #f5f5f7;
-  background-color: #0b0709;
+  color: var(--ink);
+  background-color: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -25,4 +40,12 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background:
+    radial-gradient(1200px 500px at 70% -10%, #ffb45409, transparent 60%),
+    linear-gradient(var(--bg), var(--bg));
+}
+
+::selection {
+  background: var(--accent);
+  color: #12100a;
 }

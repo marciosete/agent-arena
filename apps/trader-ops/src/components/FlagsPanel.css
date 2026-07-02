@@ -1,0 +1,19 @@
+/* Release-console specifics layered on the shared terminal design system. */
+
+.release-alert {
+  margin: 0 0 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ff5d5d55;
+  border-radius: 4px;
+  background: #ff5d5d14;
+  color: var(--crit);
+  font-size: 0.72rem;
+}
+
+/* Keep the switch and its armed confirm-strip on one right-aligned line. */
+.flag-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}

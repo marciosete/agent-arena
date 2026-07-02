@@ -1,0 +1,19 @@
+/* Finale control — a vertical stack of full-width command buttons so the three
+   irreversible actions read as a deliberate ladder, not a toolbar. */
+
+.fc-commands {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.fc-commands .confirm-strip {
+  justify-content: space-between;
+}
+
+.fc-result {
+  margin: 0.6rem 0 0;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
