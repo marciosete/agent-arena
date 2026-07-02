@@ -1,9 +1,9 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { AccountSchema, OPENING_BALANCE, type Account, type AuthResponse } from '@arena/contracts';
+import { signToken } from '@arena/service-auth';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from './email.service';
 import { codesMatch, generateCode, hashCode } from './otp';
-import { signToken } from './token';
 
 const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_ATTEMPTS = 5;

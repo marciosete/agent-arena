@@ -10,8 +10,9 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
  *
  * The signature covers header + payload, so any tampering (including a forged
  * expiry) invalidates the token. Dependency-free so it can be exhaustively
- * unit-tested and reused by the Bearer guard — and any standard JWT library can
- * verify it.
+ * unit-tested and reused by the JWT guard — and any standard JWT library can
+ * verify it. Shared across services via `@arena/service-auth`, all keyed on the
+ * same `SESSION_SECRET`.
  */
 
 const TOKEN_TTL_SECONDS = 12 * 60 * 60; // 12 hours
@@ -35,7 +36,7 @@ function nowSeconds(): number {
  * before the first token is signed. Falls back to a well-known dev value.
  */
 function sessionSecret(): string {
-  return process.env.BETTING_SESSION_SECRET ?? 'dev-session-secret';
+  return process.env.SESSION_SECRET ?? 'dev-session-secret';
 }
 
 function encodeSegment(value: unknown): string {

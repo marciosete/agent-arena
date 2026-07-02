@@ -10,6 +10,7 @@
   },
   "workspaces": [
     "contracts",
+    "service-auth",
     "services/*",
     "apps/*",
     "bots"
@@ -45,7 +46,7 @@
     "osv:scan": "osv-scanner -L package-lock.json --format table",
     "osv:scan:high": "./scripts/osv-ci.sh",
     "ticker": "./scripts/ticker.sh",
-    "postinstall": "npm run build -w contracts && npm run prisma:generate --workspaces --if-present",
+    "postinstall": "npm run build -w contracts && npm run build -w service-auth && npm run prisma:generate --workspaces --if-present",
     "prepare": "husky"
   },
   "lint-staged": {

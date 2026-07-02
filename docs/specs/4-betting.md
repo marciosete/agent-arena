@@ -9,16 +9,25 @@
 
 ## Mission
 
-You are the ledger. Accounts, wallets, bet placement, settlement, and the exposure numbers the
-trading desk lives by. This is the service where correctness is non-negotiable — money moves
-here, and it moves **in the database**.
+You are the ledger. Wallets, bet placement, settlement, and the exposure numbers the trading desk
+lives by. This is the service where correctness is non-negotiable — money moves here, and it moves
+**in the database**.
+
+> **Accounts + auth are PRE-BUILT platform infra (like flags) — READ-ONLY.** Under `src/auth/`
+> and `src/accounts/` already exist: the `Account` model, passwordless **email + OTP** login
+> (`POST /auth/request-otp`, `POST /auth/verify` → a signed session token), admin bot-provisioning
+> (`POST /accounts`, x-admin-key), account reads (`GET /accounts`, `GET /accounts/:id`), the
+> `BearerAuthGuard` (derives the account from the token), and the `AdminGuard`. **Don't touch
+> them.** A new punter's wallet opens with `OPENING_BALANCE` (10,000) on first `/auth/verify`. You
+> build the money on top.
 
 ## Data model (design it, then `npx prisma migrate dev`)
 
-Define Prisma models in `prisma/schema.prisma` — suggested shape, refine as you see fit:
+`Account` and `Otp` are already defined + migrated (pre-built). Add your models to
+`prisma/schema.prisma` and migrate — suggested shape, refine as you see fit:
 
-- **Account** — id, **name `@unique`**, balance, isBot, createdAt (name is the punter's identity —
-  the unique constraint is what makes `POST /accounts` a safe find-or-create)
+- **Account** — PRE-BUILT (`id`, `email @unique`, `name`, `balance`, `isBot`, `createdAt`).
+  Reference it; don't redefine it.
 - **Bet** — id, accountId, marketId, selectionId, stake, price, potentialReturn, status,
   placedAt, settledAt, **idempotencyKey `@unique`** (the DB enforces idempotency, not an if-statement)
 - **LedgerEntry** — id, accountId, delta, balanceAfter, reason, refBetId?, createdAt —

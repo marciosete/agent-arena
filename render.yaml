@@ -34,7 +34,7 @@ services:
       - key: BETTING_DATABASE_URL
         sync: false
       # Auth (pre-built): passwordless email + OTP → session tokens
-      - key: BETTING_SESSION_SECRET # HMAC key for signing session tokens
+      - key: SESSION_SECRET # HMAC key for signing session tokens (shared via @arena/service-auth)
         sync: false
       - key: BETTING_ADMIN_KEY # guards bot provisioning + settlement
         sync: false

@@ -46,7 +46,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['services/**/*.ts', 'bots/**/*.ts', 'contracts/**/*.ts'],
+    files: ['services/**/*.ts', 'bots/**/*.ts', 'contracts/**/*.ts', 'service-auth/**/*.ts'],
     languageOptions: {
       globals: { ...globals.node },
     },

@@ -85,19 +85,21 @@ flags + names) — see **Images & assets** for why it's not a pixel copy of the 
 
 ## Requirements
 
-### 1. Identity, wallet, profile & logout — passwordless, robust, recoverable
+### 1. Identity, wallet, profile & logout — PRE-BUILT email + OTP auth
 
-No passwords (donut dollars, not real money). **A punter's name is their identity.**
+**Login is pre-built platform infra (`@arena/web-auth`) — you build _behind_ it, not it.** The
+whole app is gated: no valid session → the `/login` screen. Wrap the app in the package's
+`<AuthProvider bettingUrl={…}><RequireAuth>…</RequireAuth></AuthProvider>` and read the session via
+`useAuth()`.
 
-- **First visit / no session:** an identity gate — _"Enter your punter name. You'll start with
-  10,000 donut dollars."_ On submit, `POST :4002/accounts { name }`, which is
-  **find-or-create by name**: an existing name returns that account (balance + bets intact — this
-  is how you sign back in on a new device or after clearing storage); a new name opens an account
-  with `OPENING_BALANCE` (**10,000**). Persist `{ accountId, name }` in `localStorage`, and **show
-  the returned balance** so a returning punter sees _"welcome back — 8,420"_.
-- **Returning (cached):** on load, if `localStorage` has an `accountId`, `GET :4002/accounts/:id`
-  to confirm + **refresh balance**. On 404 (DB reset / stale id), clear the cache and re-show the
-  gate — never leave a broken session live.
+- **Passwordless email + OTP.** `/login`: email → a 6-digit code is emailed (Resend) → enter the
+  code + a **nickname** (new accounts) → in. Betting issues a signed **JWT**; the package stores it
+  and attaches it as `Authorization: Bearer` on every call (use its `apiFetch`). A new account
+  opens with `OPENING_BALANCE` (**10,000**).
+- **Nickname = the display identity** — shown in the wallet chip and everywhere you name the punter
+  (the trader leaderboard shows it too).
+- **Every backend call needs the token** — all services now require a valid JWT (only `/health` +
+  `/auth/*` are public). A 401 / expired token drops you back to `/login`.
 - **Wallet chip (header, right):** always shows **`🍩 {balance} · {name}`**, balance starting at
   **10,000**, updated after every bet and on every poll during a sim run.
 - **Profile menu** (click the wallet chip): name, live balance, **Switch punter** (re-open the

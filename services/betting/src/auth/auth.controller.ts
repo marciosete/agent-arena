@@ -8,9 +8,9 @@ import {
   type RequestOtpRequest,
   type VerifyOtpRequest,
 } from '@arena/contracts';
+import { ZodValidationPipe } from '@arena/service-auth';
 import { AuthService } from './auth.service';
 import { AdminGuard } from './admin.guard';
-import { ZodValidationPipe } from './zod-validation.pipe';
 
 @Controller()
 export class AuthController {

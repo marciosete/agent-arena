@@ -1,10 +1,10 @@
 import { UnauthorizedException, Logger } from '@nestjs/common';
 import { OPENING_BALANCE } from '@arena/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { verifyToken } from '@arena/service-auth';
 import { AuthService } from './auth.service';
 import { EmailService } from './email.service';
 import { hashCode } from './otp';
-import { verifyToken } from './token';
 import type { PrismaService } from '../prisma/prisma.service';
 
 const EMAIL = 'punter@example.com';

@@ -20,13 +20,13 @@ function encodeSegment(value: unknown): string {
  * secret scanners.
  */
 function signEnvelope(signingInput: string): string {
-  const secret = String(process.env.BETTING_SESSION_SECRET);
+  const secret = String(process.env.SESSION_SECRET);
   return createHmac('sha256', secret).update(signingInput).digest('base64url');
 }
 
 describe('token', () => {
   afterEach(() => {
-    delete process.env.BETTING_SESSION_SECRET;
+    delete process.env.SESSION_SECRET;
     vi.useRealTimers();
   });
 
@@ -54,7 +54,7 @@ describe('token', () => {
   });
 
   it('is verifiable by any standard HS256 JWT tool (signature = HMAC over header.payload)', () => {
-    process.env.BETTING_SESSION_SECRET = 'interop-secret';
+    process.env.SESSION_SECRET = 'interop-secret';
     const [header, payload, signature] = signToken(ACCOUNT_ID).split('.');
     // Reproduce exactly what a conformant verifier computes over the signing input.
     expect(signEnvelope(`${header}.${payload}`)).toBe(signature);
@@ -93,14 +93,14 @@ describe('token', () => {
   });
 
   it('rejects a token signed under a different secret', () => {
-    process.env.BETTING_SESSION_SECRET = 'secret-a';
+    process.env.SESSION_SECRET = 'secret-a';
     const token = signToken(ACCOUNT_ID);
-    process.env.BETTING_SESSION_SECRET = 'secret-b';
+    process.env.SESSION_SECRET = 'secret-b';
     expect(verifyToken(token)).toBeNull();
   });
 
   it('rejects a correctly-signed token whose header is not HS256/JWT', () => {
-    process.env.BETTING_SESSION_SECRET = 'edge-case-secret';
+    process.env.SESSION_SECRET = 'edge-case-secret';
     const header = encodeSegment({ alg: 'none', typ: 'JWT' });
     const payload = encodeSegment({
       sub: ACCOUNT_ID,
@@ -122,7 +122,7 @@ describe('token', () => {
   });
 
   it('returns null when the payload is valid base64url but not a token payload', () => {
-    process.env.BETTING_SESSION_SECRET = 'edge-case-secret';
+    process.env.SESSION_SECRET = 'edge-case-secret';
     const header = encodeSegment({ alg: 'HS256', typ: 'JWT' });
     const payload = encodeSegment({ notSub: true });
     const signingInput = `${header}.${payload}`;
@@ -130,7 +130,7 @@ describe('token', () => {
   });
 
   it('returns null (never throws) when a correctly-signed payload is not valid JSON', () => {
-    process.env.BETTING_SESSION_SECRET = 'edge-case-secret';
+    process.env.SESSION_SECRET = 'edge-case-secret';
     const header = encodeSegment({ alg: 'HS256', typ: 'JWT' });
     const payload = Buffer.from('this is not json {').toString('base64url');
     const signingInput = `${header}.${payload}`;

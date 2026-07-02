@@ -1,10 +1,14 @@
 import { BadRequestException } from '@nestjs/common';
-import { RequestOtpRequestSchema } from '@arena/contracts';
+import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 import { ZodValidationPipe } from './zod-validation.pipe';
 
+// A representative request schema — the pipe is schema-agnostic, so a local one
+// keeps this package a self-contained leaf (no dependency on @arena/contracts).
+const EmailRequestSchema = z.object({ email: z.string().email() });
+
 describe('ZodValidationPipe', () => {
-  const pipe = new ZodValidationPipe(RequestOtpRequestSchema);
+  const pipe = new ZodValidationPipe(EmailRequestSchema);
 
   it('returns the parsed value for valid input', () => {
     expect(pipe.transform({ email: 'punter@example.com' })).toEqual({
