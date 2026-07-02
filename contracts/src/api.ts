@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { AccountSchema, BetStatusSchema, SettlementEventSchema, TeamIdSchema } from './schemas';
+import {
+  AccountSchema,
+  BetStatusSchema,
+  FixtureSchema,
+  SettlementEventSchema,
+  TeamIdSchema,
+} from './schemas';
 
 /**
  * Service topology and REST contracts.
@@ -35,6 +41,21 @@ export const OPENING_BALANCE = 10_000;
 /** Bookmaker margin applied on top of fair probabilities (5% overround). */
 export const TARGET_OVERROUND = 1.05;
 
+// ── Auth model (platform-wide, pre-built) ──────────────────────────────
+// Every endpoint requires `Authorization: Bearer <jwt>`, with exactly two
+// exceptions: `GET /health` (all services) and betting's `POST /auth/request-otp`
+// + `POST /auth/verify`. Nothing else is public — markets, flags, accounts,
+// bets, exposure and sim state all require a valid token; there is simply no
+// per-user check on reads (any logged-in caller may read them).
+//   • Humans   → betting /auth (email + OTP) issues the token; the apps attach it
+//                on every call via @arena/web-auth `apiFetch`.
+//   • Bots     → admin-keyed POST /accounts returns a token (bots have no inbox).
+//   • Services → mint a service token with @arena/service-auth `signToken('<svc>')`
+//                (shared SESSION_SECRET) before calling another service.
+// A handful of MUTATIONS need an ADDITIONAL `x-admin-key` on top of the JWT:
+// betting POST /accounts + POST /settle, flags PUT /flags/:key, and every
+// simulator control endpoint (POST /play-next, /run, /reset).
+
 // ── Shared ─────────────────────────────────────────────────────────────
 
 export const HealthResponseSchema = z.object({
@@ -46,10 +67,12 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 
 // ── Pricing service (:4001) ────────────────────────────────────────────
 // GET  /health                → HealthResponse
-// GET  /markets               → Market[]        (all markets, priced)
-// GET  /markets/:fixtureId    → Market          (match-winner market for fixture)
-// GET  /outright              → Market          (tournament winner market)
-// POST /reprice               → Market[]        (recompute after a result; body: RepriceRequest)
+// GET  /markets               → Market[]        🔒 Bearer (all markets, priced)
+// GET  /markets/:fixtureId    → Market          🔒 Bearer (match-winner market for a fixture)
+// GET  /outright              → Market          🔒 Bearer (tournament winner market)
+// POST /reprice               → Market[]        🔒 Bearer (body: RepriceRequest; called by the simulator
+//                               with a service token after each result — advances the bracket, reprices,
+//                               and returns the updated markets)
 
 export const RepriceRequestSchema = z.object({
   settlement: SettlementEventSchema,
@@ -62,12 +85,13 @@ export type RepriceRequest = z.infer<typeof RepriceRequestSchema>;
 // POST /auth/request-otp      → { ok: true }    (body: RequestOtpRequest) — emails a 6-digit code; always 200 (no account enumeration)
 // POST /auth/verify           → AuthResponse    (body: VerifyOtpRequest) — verifies the code, find-or-create by email, issues a session token
 // POST /accounts              → AuthResponse    🔒 x-admin-key (body: CreateAccountRequest) — bot provisioning (bots have no inbox)
-// GET  /accounts/:id          → Account         (public: balances show on the leaderboard)
-// GET  /accounts              → Account[]
+// GET  /accounts/:id          → Account         🔒 Bearer (any logged-in user; balances/nicknames show on the leaderboard)
+// GET  /accounts              → Account[]        🔒 Bearer (leaderboard source)
 // POST /bets                  → Bet             🔒 Bearer (body: PlaceBetRequest; the account is derived from the token, never trusted from the body)
-// GET  /bets?accountId=:id    → Bet[]
-// POST /settle                → SettleResponse  🔒 x-admin-key (body: SettleRequest; called by sim)
-// GET  /exposure              → ExposureReport  (trader back office)
+// GET  /bets?accountId=:id    → Bet[]           🔒 Bearer (a punter's own bets — the my-bets view)
+// POST /settle                → SettleResponse  🔒 Bearer + x-admin-key (body: SettleRequest; called by the
+//                               simulator with a service token after each result)
+// GET  /exposure              → ExposureReport  🔒 Bearer (trader back office — staked + max liability per market)
 //
 // Auth convention: /auth/verify and (admin) /accounts return { token, account }. Send the token
 // as `Authorization: Bearer <token>` on protected endpoints. Tokens are signed + expiring.
@@ -157,10 +181,9 @@ export type BetQuery = z.infer<typeof BetQuerySchema>;
 // data, so RELEASE is decoupled from DEPLOY. Everything ships dark; flipping
 // a flag reveals it in production without a deployment.
 // GET  /health                → HealthResponse
-// GET  /flags                 → FeatureFlag[]
-// PUT  /flags/:key            → FeatureFlag   (body: UpdateFlagRequest;
-//                               requires x-admin-key header when the service
-//                               has FLAGS_ADMIN_KEY configured — reads stay public)
+// GET  /flags                 → FeatureFlag[]  🔒 Bearer (punter feature-gating + trader panel read)
+// PUT  /flags/:key            → FeatureFlag    🔒 Bearer + x-admin-key (body: UpdateFlagRequest;
+//                               the admin key — FLAGS_ADMIN_KEY — is the EXTRA gate on writes)
 
 export const FeatureFlagSchema = z.object({
   key: z.string().min(1),
@@ -187,10 +210,10 @@ export type FlagKey = (typeof FLAG_DEFINITIONS)[number]['key'];
 
 // ── Simulator service (:4003) ──────────────────────────────────────────
 // GET  /health                → HealthResponse
-// GET  /state                 → SimState        (current bracket incl. simulated results)
-// POST /play-next             → SimState        (simulate the next unplayed fixture)
-// POST /run                   → SimState        (body: RunRequest; fast-forward to the final)
-// POST /reset                 → SimState        (back to real-world state)
+// GET  /state                 → SimState        🔒 Bearer (live bracket incl. results — punter bracket + trader feed poll this)
+// POST /play-next             → SimState        🔒 Bearer + x-admin-key (simulate the next unplayed fixture)
+// POST /run                   → SimState        🔒 Bearer + x-admin-key (body: RunRequest; fast-forward to the final)
+// POST /reset                 → SimState        🔒 Bearer + x-admin-key (back to real-world state)
 
 export const RunRequestSchema = z.object({
   /** ms pause between simulated fixtures so UIs can animate; 0 = instant */
@@ -199,6 +222,16 @@ export const RunRequestSchema = z.object({
 export type RunRequest = z.infer<typeof RunRequestSchema>;
 
 export const SimStateSchema = z.object({
+  /**
+   * The full live bracket: the same fixtures as the `FIXTURES` seed, but with results
+   * filled in as they are played — status → 'finished', homeScore/awayScore, winnerTeamId,
+   * and the winner propagated into the next fixture's home/away slot (per feedsInto/
+   * feedsIntoSlot). This is the ONLY source of live scores + winners: the punter bracket
+   * and the trader settlement feed both render from `fixtures`. The id arrays below are
+   * conveniences derived from it.
+   */
+  fixtures: z.array(FixtureSchema),
+  /** set once the final is played */
   champion: TeamIdSchema.nullable(),
   playedFixtureIds: z.array(z.string()),
   remainingFixtureIds: z.array(z.string()),

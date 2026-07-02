@@ -11,9 +11,13 @@ export class SimulatorService {
 
   private static initialState(): SimState {
     return {
+      // The live bracket starts as a copy of the seed; the workstream mutates these
+      // fixtures (status/scores/winnerTeamId + advancement) as it plays each one, and
+      // derives the id arrays below from their status.
+      fixtures: FIXTURES.map((f) => ({ ...f })),
       champion: null,
-      playedFixtureIds: [],
-      remainingFixtureIds: FIXTURES.filter((f) => f.status === 'scheduled').map((f) => f.id),
+      playedFixtureIds: FIXTURES.filter((f) => f.status === 'finished').map((f) => f.id),
+      remainingFixtureIds: FIXTURES.filter((f) => f.status !== 'finished').map((f) => f.id),
     };
   }
 

@@ -24,6 +24,17 @@ Everything speaks the REST surface defined in `contracts/src/api.ts` (ports, end
 request/response zod schemas). Seed data (real World Cup 2026 bracket) is exported as
 `TEAMS` and `FIXTURES` from `@arena/contracts`.
 
+**Auth is pre-built platform infrastructure** (like flags — READ-ONLY, not a workstream), in two
+shared packages: `@arena/service-auth` (backend — a global JWT guard already wired into every
+service, `signToken`/`verifyToken`, `ZodValidationPipe`) and `@arena/web-auth` (frontend —
+`AuthProvider`, `LoginPage`, `RequireAuth`, `apiFetch`). Every endpoint requires a Bearer JWT except
+`/health` and betting's `/auth/*`; humans sign in with email + OTP, bots are admin-provisioned,
+services mint service tokens.
+
+**Before building anything that talks to another component, read
+`docs/engineering/integration.md`** — the authoritative cross-service dependency map: the auth
+model, who calls whom, the bracket↔market join, and the finale settlement chain.
+
 ## Style
 
 - TypeScript strict; no `any` unless truly unavoidable.

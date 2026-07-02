@@ -15,25 +15,50 @@ animate the bracket on the big screen. You are the finale's engine.
 Simulation state is deliberately **not** persisted: it's ephemeral, resettable theatre. If
 anyone asks why there's no database here, that's the answer — a design decision, not a gap.
 
+**Integration (`docs/engineering/integration.md` §2, §4).** _Called by:_ punter-web + trader-ops
+poll `GET /state` for the live bracket/settlement feed; the operator (trader app or a script) hits
+the control plane (`/play-next`, `/run`, `/reset`). _Calls out:_ pricing `POST /reprice` then
+betting `POST /settle` after every result. You are the only writer that fans out.
+
 ## Requirements
 
 1. **Bracket state.** Own an in-memory copy of `FIXTURES` (the scaffold's `SimulatorService`
    starts it). A played fixture gets scores, a winner, status `finished`; the winner advances
    into `feedsInto`/`feedsIntoSlot` on the next fixture.
-2. **Result generation.** Winner drawn from Elo-derived probabilities; scores generated
-   plausibly (Poisson-ish, 0–4 goals typical); level scores ⇒ `decidedOnPenalties: true`.
-   RNG must be **seedable** for deterministic tests.
-3. **`POST /play-next`** — simulate the next unplayed fixture in kickoff order, then notify
-   the platform _in this order_:
-   1. `POST pricing:4001/reprice` with the `SettlementEvent`;
-   2. `POST betting:4002/settle` with the settlement + winning selections (match-winner market
-      of that fixture; plus the outright market when the final is played).
-      Downstream failures must not corrupt your state — log and carry on (degraded mode).
-      Returns updated `SimStateSchema`.
+2. **Result generation.** Winner drawn from **Elo-derived** win probabilities — the standard
+   logistic curve `P(home) = 1 / (1 + 10^((eloAway − eloHome) / 400))` over the two slots' `Team.elo`
+   (look teams up in `TEAMS`); scores generated plausibly (Poisson-ish, 0–4 goals typical) and **kept
+   consistent with the drawn winner** (winner's goals ≥ loser's; equal ⇒ `decidedOnPenalties: true`,
+   `winnerTeamId` = the drawn winner). `homeScore`/`awayScore` are oriented to the fixture's
+   `homeTeamId`/`awayTeamId`. RNG must be **seedable** for deterministic tests.
+3. **`POST /play-next` — the finale chain.** Simulate the next unplayed fixture in kickoff order
+   (both slots are filled by the time you reach it — advancement guarantees it; if nothing is
+   unplayed, it's a no-op returning current state), then drive the settlement pipeline — **the one
+   sequence to get right (`docs/engineering/integration.md` §4):**
+   1. Build a `SettlementEvent { fixtureId, winnerTeamId, homeScore, awayScore, decidedOnPenalties,
+settledAt }` from the played fixture.
+   2. `POST pricing /reprice` with `RepriceRequestSchema` `{ settlement }`. Pricing advances the
+      bracket, settles that fixture's market, reprices downstream + outright, and **returns the
+      updated `Market[]`**.
+   3. **Resolve `winningSelections` FROM that returned `Market[]` — the fragile step (the §3 join).**
+      For the just-settled `MATCH_WINNER` market (the one with `fixtureId === settlement.fixtureId`),
+      pick the `Selection` whose `name` equals the winner's team name (`teamById(winnerTeamId).name`
+      from `TEAMS`). When the **final** is played, ALSO add the `OUTRIGHT` market's (`type:
+'OUTRIGHT'`, `fixtureId: null`) selection whose `name` matches the champion. Resolve ids **by
+      team name from pricing's response — never guess an id format** (pricing owns selection ids).
+   4. `POST betting /settle` with `SettleRequestSchema` `{ settlement, winningSelections }`.
+
+   Downstream failures must not corrupt your state — log and carry on (degraded mode). Returns the
+   updated `SimState`.
+
 4. **`POST /run`** — validated `RunRequestSchema`. Play everything to the final, pausing
    `intervalMs` between fixtures (async loop — respond immediately, expose progress via
    `GET /state`). The champion ends up in `SimState.champion`.
-5. **`GET /state` / `POST /reset`** — as scaffolded, kept true throughout.
+5. **`GET /state` / `POST /reset`** — as scaffolded, kept true throughout. `GET /state` returns
+   `SimState`, whose **`fixtures: Fixture[]` is the live bracket and the ONLY source of live results**
+   the punter bracket + trader feed render from (`docs/engineering/integration.md` §3): played
+   fixtures carry `status: 'finished'`, scores, `winnerTeamId`, and the winner propagated into the
+   next fixture's slot. You hold the single mutable copy in memory; `POST /reset` restores the seed.
 
 **Security — everything requires auth; the control plane needs admin on top.** Register the shared
 `JwtAuthGuard` from `@arena/service-auth` globally (`APP_GUARD`) and mark `GET /health` `@Public()`
@@ -45,14 +70,18 @@ _authorized_ to drive the finale.
 **Outbound calls need a service token.** When you call pricing `/reprice` and betting `/settle`
 (both now JWT-protected), sign a **service JWT** with `signToken('simulator')` from
 `@arena/service-auth` (it reads the shared `SESSION_SECRET`) and send it as `Authorization: Bearer`.
-For betting `/settle`, ALSO send betting's `x-admin-key` (settlement moves money).
+For betting `/settle`, ALSO send betting's `x-admin-key` — read from your own env
+(`BETTING_ADMIN_KEY`) — because settlement moves money. Full platform auth model:
+`docs/engineering/integration.md` §1.
 
 ## Enterprise bar
 
 - Advancement logic (winner → correct slot of correct fixture) is pure and exhaustively
   unit-tested — this is the piece that silently breaks brackets.
-- HTTP calls to pricing/betting in one thin injectable client, zod-parsing responses, tested
-  with mocked fetch.
+- HTTP calls to pricing/betting in one thin injectable client — resolve base URLs env-first
+  (`process.env.PRICING_URL ?? BASE_URLS.pricing`, `process.env.BETTING_URL ?? BASE_URLS.betting`),
+  attach the service token (and betting's `x-admin-key`), and zod-parse every response
+  (`MarketSchema`, `SettleResponseSchema`). Tested with mocked fetch.
 - ≥85% coverage on everything you commit; zero lint warnings; no cross-workstream imports.
 
 ## Definition of Done
@@ -63,14 +92,21 @@ these — paste the name of the test for each:
 - **Bracket advancement** puts each winner in the correct slot of the correct next fixture, all
   the way to the final
 - Result generation is deterministic under a fixed seed
+- **`winningSelections` resolves the winning `selectionId` BY team name** from a real-shaped
+  `Market[]` (the §3 join) — including the `OUTRIGHT` champion when the final is played
+- **Control endpoints reject without a valid `x-admin-key`** (`/play-next`, `/run`, `/reset` →
+  401); `GET /state` requires a Bearer JWT
+- **`GET /state` exposes the live bracket** — a played fixture shows `finished` + scores +
+  `winnerTeamId` + the advanced winner in the next slot
 - `POST /play-next`, `POST /run`, `GET /state`, `POST /reset` all work; `play-next` calls
   pricing `/reprice` then betting `/settle` (mocked fetch) and survives either being down
 
 ## Demo moment
 
-`curl -X POST :4003/run -d '{"intervalMs": 2000}' -H 'content-type: application/json'` and the
-whole room watches the tournament resolve every two seconds — bets settling, odds recomputing,
-bracket collapsing to a champion.
+`curl -X POST :4003/run -d '{"intervalMs": 2000}' -H 'content-type: application/json' -H
+"authorization: Bearer $JWT" -H "x-admin-key: $SIMULATOR_ADMIN_KEY"` and the whole room watches the
+tournament resolve every two seconds — bets settling, odds recomputing, bracket collapsing to a
+champion.
 
 ## Stretch
 

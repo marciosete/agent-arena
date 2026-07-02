@@ -54,19 +54,25 @@ flags + names) — see **Images & assets** for why it's not a pixel copy of the 
 
 ## Where the data comes from
 
-| Element on screen                       | Source                                    | Join / notes                                                       |
-| --------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------ |
-| Brand wordmark                          | static app constant                       | text, no image asset                                               |
-| Punter name + balance (wallet chip)     | betting `POST` / `GET :4002/accounts/:id` | `accountId` cached in `localStorage`; **name is the identity**     |
-| Bracket structure (rounds, matchups)    | `@arena/contracts` `FIXTURES`             | linked by `feedsInto` / `feedsIntoSlot`; fixture `id` e.g. `R16-2` |
-| Bracket results (scores, winner, champ) | simulator `GET :4003/state`               | keyed by fixture `id`                                              |
-| Team flag + name                        | `@arena/contracts` `TEAMS`                | `flag` is an **emoji**; fixture `homeTeamId`/`awayTeamId` → team   |
-| Odds on a fixture                       | pricing `GET :4001/markets`               | **join `Market.fixtureId` === fixture `id`**                       |
-| Title / outright odds                   | pricing `GET :4001/outright`              | `Market.fixtureId === null`                                        |
-| Placing a bet                           | betting `POST :4002/bets`                 | needs `Market.id` + `Selection.id` + `acceptedPrice`               |
-| My bets                                 | betting `GET :4002/bets?accountId=`       |                                                                    |
-| Feature gating                          | flags `GET :4004/flags`                   | which surfaces render (§6)                                         |
-| `/status` health dots                   | each service `GET /health`                | scaffold already does this                                         |
+Every call below goes through `@arena/web-auth` `apiFetch`, which attaches the session **Bearer**
+JWT automatically (§1) — the punter never sets an `Authorization` header by hand, and there is no
+per-user check on reads (any logged-in caller may read). The only unauthenticated call is
+`GET /health` (`/status`). See **`integration.md` §2** for the full who-calls-whom map; the punter is
+a read/poll client plus bet placement, and its role in the finale settlement chain is to poll and
+reflect (**`integration.md` §4 step 6, §5**).
+
+| Element on screen                             | Source                              | Join / notes                                                                                                                                                                                                                                  |
+| --------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Brand wordmark                                | static app constant                 | text, no image asset                                                                                                                                                                                                                          |
+| Punter nickname + balance (wallet chip)       | `useAuth().session.account`         | `.name` (nickname) + `.balance`; refresh via betting `GET :4002/accounts/:id`                                                                                                                                                                 |
+| Bracket (structure, scores, winner, champion) | simulator `GET :4003/state`         | `SimState.fixtures` (a `Fixture[]`, same shape as the `FIXTURES` seed) drives layout **and** live results; `feedsInto`/`feedsIntoSlot` link rounds; `SimState.champion` = the winner. **Not** the static `FIXTURES` seed (integration.md §3). |
+| Team flag + name                              | `@arena/contracts` `TEAMS`          | `flag` is an **emoji**; fixture `homeTeamId`/`awayTeamId` (3-letter ids) → team                                                                                                                                                               |
+| Odds on a fixture                             | pricing `GET :4001/markets`         | **join `Market.fixtureId` === fixture `id`**                                                                                                                                                                                                  |
+| Title / outright odds                         | pricing `GET :4001/outright`        | `Market.fixtureId === null`                                                                                                                                                                                                                   |
+| Placing a bet                                 | betting `POST :4002/bets`           | body `{ marketId, selectionId, stake, acceptedPrice, idempotencyKey }` — **no `accountId`** (derived from token)                                                                                                                              |
+| My bets                                       | betting `GET :4002/bets?accountId=` | `accountId` = `session.account.id`                                                                                                                                                                                                            |
+| Feature gating                                | flags `GET :4004/flags`             | which surfaces render (§6)                                                                                                                                                                                                                    |
+| `/status` health dots                         | each service `GET /health`          | public (no token); scaffold already does this                                                                                                                                                                                                 |
 
 ## Images & assets
 
@@ -98,15 +104,18 @@ whole app is gated: no valid session → the `/login` screen. Wrap the app in th
   opens with `OPENING_BALANCE` (**10,000**).
 - **Nickname = the display identity** — shown in the wallet chip and everywhere you name the punter
   (the trader leaderboard shows it too).
-- **Every backend call needs the token** — all services now require a valid JWT (only `/health` +
-  `/auth/*` are public). A 401 / expired token drops you back to `/login`.
-- **Wallet chip (header, right):** always shows **`🍩 {balance} · {name}`**, balance starting at
-  **10,000**, updated after every bet and on every poll during a sim run.
-- **Profile menu** (click the wallet chip): name, live balance, **Switch punter** (re-open the
-  gate), **Log out**.
-- **Log out = local sign-out only:** clear `{accountId,name}` from `localStorage` → back to the
-  gate. The account and balance **persist server-side** and are recoverable by re-entering the
-  name. No account deletion, no separate profile page — My Bets (§5) is the history.
+- **Every backend call needs the token** — all services require a valid JWT (only `GET /health` and
+  betting's `/auth/*` are public; see **`integration.md` §1**). `apiFetch` attaches it; a 401 /
+  expired token drops you back to `/login` (the package's `RequireAuth`). You never re-implement auth.
+- **Wallet chip (header, right):** always shows **`🍩 {balance} · {name}`** from
+  `useAuth().session.account` (`.balance`, `.name`), balance starting at **10,000**
+  (`OPENING_BALANCE`), updated after every bet and on every poll during a sim run.
+- **Profile menu** (click the wallet chip): nickname, live balance, **Switch punter** (log out, then
+  sign in as another email), **Log out**.
+- **Log out = sign-out only:** call the package's sign-out from `useAuth()` (clears the stored
+  session/JWT) → back to `/login`. The account and balance **persist server-side**; sign back in with
+  the same email (OTP) to recover — nothing is deleted. No separate profile page — My Bets (§5) is
+  the history.
 - You are never the only account — bots and other punters exist.
 
 ### 2. The bracket — the home page & signature screen
@@ -116,7 +125,8 @@ Full-bleed radial SVG at `/`, built to the key art.
 - **Size & position:** a square SVG (`viewBox="0 0 1000 1000"`, centre `(500,500)` = the trophy)
   scaled by CSS to `min(92vw, 92vh)` and centred under the header — it dominates the screen. Stays
   circular and legible on a phone (people photograph it on their phones).
-- **Geometry (data-driven radial layout):** group `FIXTURES` by round; assign each round a ring
+- **Geometry (data-driven radial layout):** group the fixtures from `GET :4003/state`
+  (`SimState.fixtures` — same shape as the `FIXTURES` seed) by round; assign each round a ring
   radius, outer → inner: **R32 ≈ 460, R16 ≈ 360, QF ≈ 250, SF ≈ 150, F ≈ 70**, trophy at centre.
   Place the outer-round teams around the full circle by angle (a fixture's two teams adjacent);
   each fixture's winner-slot sits on the next inner ring at the mean angle of its feeders, found
@@ -171,16 +181,19 @@ Full-bleed radial SVG at `/`, built to the key art.
 - A slip available from any page: **selection, current price, stake input, potential return**
   (`stake × price`), and the **balance it will leave** — validate `stake ≤ current balance`
   client-side (the server is the referee, but don't offer an impossible bet).
-- Submit `POST :4002/bets` with a **fresh `crypto.randomUUID()` idempotency key** and the displayed
-  price as `acceptedPrice`.
+- Submit `POST :4002/bets` (via `apiFetch`, so the Bearer is attached) with body
+  `{ marketId, selectionId, stake, acceptedPrice, idempotencyKey }` — a **fresh
+  `crypto.randomUUID()`** `idempotencyKey` and the displayed price as `acceptedPrice`. **No
+  `accountId`:** betting derives the account from the token (**`integration.md` §5**).
 - **409 price-moved:** show the new price and ask again (accept → resubmit with a new key; cancel →
   drop it). Never silently place at a changed price.
 - On success: refresh balance from the account, confirm, clear the slip.
 
 ### 5. My bets (`/my-bets`, flag `punter-my-bets`)
 
-- `GET :4002/bets?accountId=` — **pending / won / lost**, each with stake, price, and
-  potential/actual return. Poll during sim runs so they **flip live** as settlements land.
+- `GET :4002/bets?accountId=` (id from `useAuth().session.account.id`) — **pending / won / lost**,
+  each with stake, price, and potential/actual return. Poll during sim runs so they **flip live** as
+  settlements land (the settlement chain — **`integration.md` §4 step 6**).
 
 ### 6. Everything ships dark — feature flags + local-dev bypass
 
@@ -204,16 +217,16 @@ scaffold's `App.tsx`) — the same build runs on localhost and on Vercel against
 
 ## What's clickable
 
-| Target                           | Action                                                                  |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| Brand wordmark                   | → home (the bracket)                                                    |
-| Nav links (Markets/Slip/My Bets) | → that page (appear as flags flip)                                      |
-| Wallet chip                      | → profile menu (name, balance, Switch punter, Log out)                  |
-| Bracket **fixture** node/edge    | → detail card → price buttons → **bet slip** (if market open + flag on) |
-| Bracket **trophy / centre**      | → outright (title) market (if `punter-markets` on)                      |
-| Market **price button**          | → bet slip pre-filled                                                   |
-| Bet-slip **place**               | → `POST /bets`                                                          |
-| Identity gate / Switch punter    | → `POST /accounts` (find-or-create)                                     |
+| Target                           | Action                                                                                  |
+| -------------------------------- | --------------------------------------------------------------------------------------- |
+| Brand wordmark                   | → home (the bracket)                                                                    |
+| Nav links (Markets/Slip/My Bets) | → that page (appear as flags flip)                                                      |
+| Wallet chip                      | → profile menu (name, balance, Switch punter, Log out)                                  |
+| Bracket **fixture** node/edge    | → detail card → price buttons → **bet slip** (if market open + flag on)                 |
+| Bracket **trophy / centre**      | → outright (title) market (if `punter-markets` on)                                      |
+| Market **price button**          | → bet slip pre-filled                                                                   |
+| Bet-slip **place**               | → `POST /bets` (no `accountId`; account from the token)                                 |
+| Log out / Switch punter          | → `@arena/web-auth` sign-out → `/login` (email → OTP; app never calls `POST /accounts`) |
 
 Team nodes are **hover-highlight**, click routes through their fixture. Everything else (labels,
 rings, background) is non-interactive.
@@ -229,10 +242,10 @@ rings, background) is non-interactive.
 ## Enterprise bar
 
 - A typed fetch layer that zod-parses every response against contract schemas — no `any` data.
-- Components tested with Testing Library (mocked fetch): identity gate + recovery + logout, header
-  balance, markets render + price flash, slip math + 409 flow, bracket rendering + a decided
-  fixture lighting its path, fixture-click → bet slip. ≥85% coverage on everything you commit; zero
-  lint warnings.
+- Components tested with Testing Library (mocked fetch): no-token redirect to `/login`
+  (`RequireAuth`) + logout, header balance, markets render + price flash, slip math + 409 flow,
+  bracket rendering + a decided fixture lighting its path, fixture-click → bet slip. ≥85% coverage on
+  everything you commit; zero lint warnings.
 - No new dependencies — SVG by hand, CSS animations, native fetch, emoji flags.
 
 ## Definition of Done
@@ -240,15 +253,18 @@ rings, background) is non-interactive.
 Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus
 prove these — paste the name of the test for each:
 
-- The **bracket is the home route `/`**, lays out from `FIXTURES` (by round/ring, linked by
-  `feedsInto`), and a decided fixture from `/state` lights its winner's path toward the centre
+- The **bracket is the home route `/`**, lays out from `GET :4003/state`'s `SimState.fixtures` (by
+  round/ring, linked by `feedsInto`), and a decided fixture from `/state` lights its winner's path
+  toward the centre
 - A fixture node reads its odds by **`Market.fixtureId` join** and clicking it opens the bet slip
   with the right `marketId` / `selectionId`
-- **Identity is find-or-create by name** (a repeated name returns the same account) and a stale
-  cached `accountId` (404) falls back to the gate; **Log out** clears local state only
-- The header shows the **balance starting at 10,000** and updates after a bet
+- **No valid token ⇒ redirect to `/login`** (`RequireAuth`); every service call carries the session
+  **Bearer** via `apiFetch`; **Log out** clears the session and returns to `/login`
+- The header shows the **balance starting at 10,000** (`OPENING_BALANCE`, from `session.account`) and
+  updates after a bet
 - Each feature is gated on `import.meta.env.DEV || flag.enabled` — both modes proven
-- The bet slip submits with a fresh idempotency key and recovers gracefully from a 409
+- The bet slip submits `{ marketId, selectionId, stake, acceptedPrice, idempotencyKey }` with a fresh
+  idempotency key (no `accountId`) and recovers gracefully from a 409
 
 ## Demo moment
 
@@ -258,7 +274,5 @@ balance in the header jumps as it happens.
 
 ## Stretch
 
-- **Recovery code:** issue a one-time code on account creation so a name can't be impersonated —
-  recovery becomes name + code (replaces find-or-create-by-name-only if you do this).
 - Cash-out teaser: live value of pending bets as odds move.
 - Confetti burst (CSS only) when the champion is decided.

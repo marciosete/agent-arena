@@ -14,11 +14,20 @@ prices, and publish a market for every fixture in the remaining World Cup bracke
 outright tournament-winner market. Markets are **persisted**: prices survive a restart, and
 every reprice is a recorded event.
 
-> **Auth is pre-built and REQUIRED.** Register the shared `JwtAuthGuard` from `@arena/service-auth`
-> globally (`APP_GUARD`) in your `AppModule` and mark `GET /health` `@Public()` — every other
-> endpoint then requires a valid `Authorization: Bearer <jwt>` (verified with `SESSION_SECRET`).
-> Callers already send it: the apps after login, bots via their token, the simulator via a service
-> token. (Follow the same wiring the other services use.)
+> **Auth is pre-built and REQUIRED — you do not implement it.** Register the shared `JwtAuthGuard`
+> from `@arena/service-auth` globally (`APP_GUARD`) in your `AppModule` and mark `GET /health`
+> `@Public()` — every other endpoint then requires a valid `Authorization: Bearer <jwt>` (verified
+> with the shared `SESSION_SECRET`). The guard is pre-wired; you only register it. Callers already
+> send a token: the **apps** (after login) and **bots** read `GET /markets` + `GET /outright`;
+> **betting** reads `GET /markets/:fixtureId` at bet time; the **simulator** calls `POST /reprice`.
+> Services mint theirs with `signToken('<svc>')`. Full model: [integration.md](../engineering/integration.md) §1.
+
+> **Where you sit.** You are the platform's price authority — everyone reads prices, nobody's prices
+> but yours. The apps and bots poll your markets for the odds board and to find value; **betting
+> calls `GET /markets/:fixtureId` at bet time to re-check the live price and that the market is still
+> `open`** before accepting a bet (integration.md §5); the **simulator drives `POST /reprice` after
+> every result and reads the winning selections back out of your response** (the finale chain,
+> integration.md §4 steps 3–4). You never call another service — callers poll you.
 
 ## Data model (design it, then `npx prisma migrate dev`)
 
@@ -34,13 +43,17 @@ contracts `FIXTURES` (idempotent upserts — restarts must not duplicate markets
 
 ## Requirements
 
-1. **Probability model.** For a fixture between two known teams, derive win probabilities from
-   the Elo ratings in `TEAMS` (logistic expectation). Knockout football always produces a
-   winner, so `MATCH_WINNER` markets have exactly two selections — extra time and penalties
-   are baked into the probability. Set the market's `fixtureId` to the fixture id and **name each
-   selection with its team's `name` from `TEAMS`** — that is how the punter app joins a market to
-   the bracket (`Market.fixtureId`) and maps a selection to a team (by name; selections carry no
-   `teamId`).
+1. **Probability model & the load-bearing naming join.** For a fixture between two known teams,
+   derive win probabilities from the Elo ratings in `TEAMS` (logistic expectation). Knockout
+   football always produces a winner, so `MATCH_WINNER` markets have exactly two selections —
+   extra time and penalties are baked into the probability. **This naming is a hard contract, not a
+   convenience:** every `MATCH_WINNER` market's `fixtureId` MUST equal its `Fixture.id` (the
+   `OUTRIGHT` market has `fixtureId: null`), and every `Selection.name` MUST exactly equal the
+   represented team's `name` from `TEAMS` (selections carry no `teamId`). This is the only join the
+   platform has: the punter maps a bracket slot to its price by `fixtureId` and labels a selection by
+   team name, and the simulator turns a `winnerTeamId` into the winning `selectionId` by matching
+   `TEAMS[…].name` against `Selection.name` (integration.md §3). A wrong name settles bets against the
+   wrong outcome — so a test asserts it.
 2. **Margin.** Convert fair probabilities to decimal prices with the margin applied
    proportionally so the overround equals `TARGET_OVERROUND` (1.05). Never below 1.01. Keep
    `probability` (the fair value) on each selection.
@@ -51,9 +64,15 @@ contracts `FIXTURES` (idempotent upserts — restarts must not duplicate markets
 5. **`GET /outright`** — tournament-winner market: one selection per team still alive, priced by
    **Monte Carlo simulation** of the whole remaining bracket (≥10,000 runs) following the
    `feedsInto`/`feedsIntoSlot` links. Computation in memory; results persisted.
-6. **`POST /reprice`** — body validated with `RepriceRequestSchema`. Apply the settlement
-   (winner advances into the next fixture's slot), then recompute and persist all markets:
-   newly-priceable fixtures gain markets, the settled fixture's market flips to `settled`.
+6. **`POST /reprice`** — body validated with `RepriceRequestSchema` (`{ settlement: SettlementEvent }`;
+   400 on garbage). Called by the simulator with a service token after every result (integration.md
+   §4 steps 3–4). Apply the settlement: advance the winner into the next fixture's open
+   `feedsInto`/`feedsIntoSlot`, flip the settled fixture's `MATCH_WINNER` market to `settled`, add
+   markets for any fixtures that just became priceable, and reprice the affected downstream markets
+   **and the `OUTRIGHT`**. Persist it all, then **return the full updated `Market[]`** (the response
+   type in the contract) — the simulator reads the winning selections back out of this response (by
+   team name, per §3), so the just-settled market and, after the final, the `OUTRIGHT` must be
+   present and correct.
 7. Every response must parse against `MarketSchema` from contracts — write a test proving it.
 
 ## Enterprise bar
@@ -69,9 +88,14 @@ contracts `FIXTURES` (idempotent upserts — restarts must not duplicate markets
 Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus prove
 these — paste the name of the test for each:
 
+- Every protected endpoint (`/markets`, `/markets/:fixtureId`, `/outright`, `/reprice`) returns
+  **401** with a missing or invalid `Authorization` header, and `GET /health` stays public
 - `GET /markets`, `GET /markets/:fixtureId`, `GET /outright` return payloads that
   `MarketSchema.parse` accepts
-- `POST /reprice` advances the bracket and re-prices affected markets
+- Every `Selection.name` equals its `Team.name` from `TEAMS`, every `MATCH_WINNER` market carries its
+  `fixtureId`, and the `OUTRIGHT` market has `fixtureId: null` (the §3 join)
+- `POST /reprice` advances the bracket, flips the settled fixture's market to `settled`, reprices the
+  affected markets **and the `OUTRIGHT`**, and **returns the updated `Market[]`**
 - The Monte Carlo outright is deterministic under a fixed seed
 - Prisma migration applied (`npx prisma migrate status` shown); domain maths in pure modules
   with `PrismaService` mocked

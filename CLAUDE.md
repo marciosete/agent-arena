@@ -13,6 +13,11 @@ The service map, ports, persistence, continuous-delivery model, and code style a
 
 - **`@arena/contracts` is the single source of truth** for cross-service types,
   request/response shapes, ports, and seed data. Import from it; changes to it are coordinated, not ad-hoc.
+- **Auth is platform-wide and pre-built** — never re-implement it. Every service requires a Bearer
+  JWT on every endpoint (a global guard from `@arena/service-auth`) except `/health` and betting's
+  `/auth/*`; the apps authenticate through `@arena/web-auth`. The auth model plus every cross-service
+  dependency and integration point live in **`docs/engineering/integration.md`** — read it before
+  building anything that calls another component.
 - **Parse, don't trust:** validate every inbound body and params against the contract zod
   schemas (a `ZodValidationPipe` is idiomatic); return 400 with a useful message on bad input.
 - **Thin controllers, testable domain logic:** keep business logic in pure functions and
