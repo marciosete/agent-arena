@@ -28,26 +28,6 @@ plane for all six services.
 www) · `trader` → trader-ops · `pricing` / `betting` / `simulator` / `flags` → CNAMEs to the
 Render services. The Vercel env vars point at these stable subdomains.
 
-## One-time setup (~20 min, needs your dashboards)
-
-### Render
-
-1. Dashboard → **New → Blueprint** → select `marciosete/agent-arena`. Render reads
-   `render.yaml` and proposes the four services.
-2. When prompted for the `sync: false` env vars, paste the values from the local
-   `.env` files (`services/*/.env`) — the three Neon connection strings.
-3. Apply. First deploy takes a few minutes; each service must go green on `/health`.
-   Custom domains (`pricing.hackathon.beer` etc.) are attached on top of the generated
-   `.onrender.com` URLs afterwards; certs issue automatically once DNS resolves.
-
-### Vercel (already provisioned via CLI — reference)
-
-Both projects exist, are GitHub-connected, have monorepo root directories set, carry the
-`VITE_*_URL` env vars (pointing at the `hackathon.beer` service subdomains), and have the
-`hackathon.beer` domains attached. The CI `deploy` job authenticates with the
-`VERCEL_TOKEN` repository secret — rotate/recreate it at vercel.com → Account Settings →
-Tokens, then `gh secret set VERCEL_TOKEN`.
-
 ## Releasing a feature (the money moment)
 
 Deploys happen all day; releases are flag flips:
@@ -81,5 +61,3 @@ flags from the back office instead of curl.
   the service's `FLAGS_ADMIN_KEY` (set on Render; value in `services/flags/.env`). Reads are
   public. The trader-ops panel asks for the key once and keeps it in localStorage — it must
   never be baked into the public bundle.
-- **The demo runs locally regardless.** The deployed platform is the CD story;
-  localhost is the fallback if a venue firewall hates you. Same code, same flags DB.
