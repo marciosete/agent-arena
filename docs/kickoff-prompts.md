@@ -10,24 +10,22 @@ claude
 /goal @docs/specs/1-punter.md
 ```
 
-`/goal` sets the spec as the session's completion contract — it keeps working across turns and
-a fast evaluator checks the condition after each turn before handing control back. CLAUDE.md
-auto-loads in every session (shared rules, architecture, quality bar); the spec carries the
-per-workstream detail, milestones, and a **Definition of Done**. Nothing else to paste.
+`/goal` sets the spec as the session's completion contract and keeps it working until the
+Definition of Done holds. CLAUDE.md auto-loads (product conventions + quality bar); the spec
+carries the per-workstream detail and Definition of Done; how goal-driven tasks work is in
+**`docs/goal-oriented-tasks.md`**. Nothing else to paste.
 
-**Key nuance:** the `/goal` evaluator only reads **what's in the conversation** — it doesn't run
-commands or open files itself. That's why every spec's Definition of Done is written as things
-the session must _run and paste_ (test output, lint, coverage, build), and ends with "list each
-item and paste its result before declaring done." Point the goal at the spec and its DoD, e.g.:
+Because the evaluator only reads what's surfaced in the conversation, use the explicit-condition
+form (more reliable than a bare `@path`) — and put the event's parallel-session rules right in
+the condition so each session stays in its lane:
 
 ```text
 /goal Build apps/punter-web per docs/specs/1-punter.md until its Definition of Done holds and I
 have pasted the passing test/lint/coverage/build output for each item. Stay in apps/punter-web;
-do not push. Stop and report if blocked after ~20 turns.
+do not commit, push, or start dev servers. Stop and report if blocked after ~20 turns.
 ```
 
-(Or the short form `/goal @docs/specs/1-punter.md` — but the explicit condition above is more
-reliable for the evaluator, since it names the surfaced-evidence bar directly.)
+Use the same condition per session, swapping the directory and spec.
 
 ## Order (launch top-to-bottom; they run in parallel)
 

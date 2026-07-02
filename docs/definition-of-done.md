@@ -1,15 +1,12 @@
-# Definition of Done — how you finish (and how `/goal` checks it)
+# Definition of Done
 
-Your spec ends with a **Definition of Done**. The `/goal` evaluator only reads what you
-**surface in the conversation** — it never runs commands or opens files — so prove completion by
-running each check and **pasting its result**:
+A change is done when you've **run it and shown the passing output** for:
 
-- `npm test -w <your-dir>` exits 0 · `npm run typecheck -w <your-dir>` clean · `npm run lint`
-  zero warnings · changed files ≥85% coverage · `npm run build -w <your-dir>` succeeds
-- Constraints held: **only your directory changed · `contracts/` untouched · no new dependencies ·
-  not pushed**
-- Post a one-line progress update as you finish each milestone (that's the host's feed).
+- `npm test -w <dir>` exits 0
+- `npm run typecheck -w <dir>` is clean
+- `npm run lint` reports zero warnings
+- changed files meet **≥85% coverage**
+- `npm run build -w <dir>` succeeds
 
-**Declaring done:** list each Definition-of-Done item from your spec and paste the command + its
-result (or the name of the test that proves it). If you can't meet one, stop and report the
-blocker — don't loop.
+plus the workstream-specific checks in your spec's own Definition of Done — each proven by a
+named test.

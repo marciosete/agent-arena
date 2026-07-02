@@ -1,5 +1,5 @@
 > **Kickoff — session 5.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
-> condition. CLAUDE.md auto-loads the shared rules.
+> condition. Build rules: `docs/live-build.md`. CLAUDE.md (auto-loaded) has the conventions.
 
 # Workstream: Tournament Simulator
 
@@ -52,8 +52,7 @@ in the header too (betting's settle endpoint should be guarded — coordinate wi
 
 ## Definition of Done
 
-Meet the **universal gates in `docs/definition-of-done.md`** (run + paste the evidence: tests, typecheck, lint,
-≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus prove
+Meet the **gates in `docs/definition-of-done.md`** (run and paste the evidence). Plus prove
 these — paste the name of the test for each:
 
 - **Bracket advancement** puts each winner in the correct slot of the correct next fixture, all

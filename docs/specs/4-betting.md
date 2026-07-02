@@ -1,5 +1,5 @@
 > **Kickoff — session 4.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
-> condition. CLAUDE.md auto-loads the shared rules. Work strictly
+> condition. Build rules: `docs/live-build.md`. CLAUDE.md (auto-loaded) has the conventions. Work strictly
 > test-first — money moves here.
 
 # Workstream: Betting Core
@@ -67,8 +67,7 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
 
 ## Definition of Done
 
-Meet the **universal gates in `docs/definition-of-done.md`** (run + paste the evidence: tests, typecheck, lint,
-≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus a named
+Meet the **gates in `docs/definition-of-done.md`** (run and paste the evidence). Plus a named
 passing test for each — paste the test names:
 
 - opens at 10,000 · rejects stake > balance · 409 when price moved > 5% · **replayed

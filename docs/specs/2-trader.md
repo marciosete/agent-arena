@@ -1,5 +1,5 @@
 > **Kickoff — session 2.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
-> condition. CLAUDE.md auto-loads the shared rules.
+> condition. Build rules: `docs/live-build.md`. CLAUDE.md (auto-loaded) has the conventions.
 
 # Workstream: Trader Ops
 
@@ -52,8 +52,7 @@ on Vercel against the Render services.
 
 ## Definition of Done
 
-Meet the **universal gates in `docs/definition-of-done.md`** (run + paste the evidence: tests, typecheck, lint,
-≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus prove
+Meet the **gates in `docs/definition-of-done.md`** (run and paste the evidence). Plus prove
 these — paste the name of the test for each:
 
 - Flags panel flips a flag via `PUT :4004/flags/:key` with the `x-admin-key` header (key from a

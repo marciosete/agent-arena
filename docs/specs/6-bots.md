@@ -1,5 +1,5 @@
 > **Kickoff — session 6.** Launch with `/goal` — see `docs/kickoff-prompts.md` for the exact
-> condition. CLAUDE.md auto-loads the shared rules.
+> condition. Build rules: `docs/live-build.md`. CLAUDE.md (auto-loaded) has the conventions.
 
 # Workstream: Bots
 
@@ -44,8 +44,7 @@ building. When the sim runs, they win and lose in public.
 
 ## Definition of Done
 
-Meet the **universal gates in `docs/definition-of-done.md`** (run + paste the evidence: tests, typecheck, lint,
-≥85% coverage, build; own directory only; contracts frozen; no deps; not pushed). Plus prove
+Meet the **gates in `docs/definition-of-done.md`** (run and paste the evidence). Plus prove
 these — paste the name of the test for each:
 
 - Each strategy is a pure function with a named test (Sharp bets only with edge + capped Kelly ·
