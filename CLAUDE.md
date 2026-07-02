@@ -21,6 +21,17 @@ workstream. You are one of those sessions. The audience is watching. Ship like a
 7. **Never print or hardcode database connection strings.** They live in your workspace's
    `.env` (gitignored). Prisma reads them via `env(...)` in `schema.prisma`.
 
+> **Guardrails — honor on discipline (no longer machine-enforced).** These paths and
+> commands were blocked by a `deny` list in `.claude/settings.json`; that list has been
+> removed, so nothing stops you from crossing them — don't:
+>
+> - `Bash(git commit:*)`, `Bash(git push:*)` — rule 5 (the host commits at milestones)
+> - `Read(./.env)` — rule 7 (never read or surface secrets)
+> - `Edit(./contracts/**)` — rule 2 (`contracts/` is frozen)
+> - `Edit(./package.json)`, `Edit(./package-lock.json)`, `Edit(./eslint.config.mjs)`,
+>   `Edit(./tsconfig.base.json)`, `Edit(./.husky/**)`, `Edit(./scripts/**)`,
+>   `Edit(./.github/**)` — rule 3 (shared config is pre-built)
+
 ## Architecture
 
 | Workstream | Directory             | Port | Persistence                                                 | Job                                                                                                |
