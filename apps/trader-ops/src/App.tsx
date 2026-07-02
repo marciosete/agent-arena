@@ -20,10 +20,19 @@ function WalletChip() {
 export default function App() {
   const { session } = useAuth();
   return (
-    <main className="shell">
-      <WalletChip />
-      <h1>Trader Ops</h1>
-      <p className="sub">Signed in as {session?.account.name ?? '—'}.</p>
-    </main>
+    <div className="app">
+      <header className="topbar">
+        <a className="brand" href="/" aria-label="home">
+          📊
+        </a>
+        <div className="topbar-right">
+          <WalletChip />
+        </div>
+      </header>
+      <main className="shell">
+        <h1>Trader Ops</h1>
+        <p className="sub">Signed in as {session?.account.name ?? '—'}.</p>
+      </main>
+    </div>
   );
 }

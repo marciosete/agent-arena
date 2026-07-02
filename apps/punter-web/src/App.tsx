@@ -143,37 +143,54 @@ function WalletChip() {
   );
 }
 
+function Header({ flags }: Readonly<{ flags?: FeatureFlag[] }>) {
+  return (
+    <header className="topbar">
+      <a className="brand" href="/" aria-label="home">
+        🏆
+      </a>
+      <div className="topbar-right">
+        {flags ? <Nav flags={flags} /> : null}
+        <WalletChip />
+      </div>
+    </header>
+  );
+}
+
 function HomePage() {
   const flags = useFlags();
   return (
-    <main className="shell">
-      <WalletChip />
-      <Nav flags={flags} />
-      <h1>Road to the Final</h1>
-      <p className="sub">The World Cup knockout stage.</p>
-    </main>
+    <div className="app">
+      <Header flags={flags} />
+      <main className="shell">
+        <h1>Road to the Final</h1>
+        <p className="sub">The World Cup knockout stage.</p>
+      </main>
+    </div>
   );
 }
 
 function StatusPage() {
   const statuses = useServiceStatuses();
   return (
-    <main className="shell">
-      <WalletChip />
-      <h1 className="status-title">Platform Status</h1>
-      <ul className="services" aria-label="platform services">
-        {SERVICES.map((service) => (
-          <li key={service} className="service">
-            <span className={`dot ${statuses[service]}`} aria-hidden="true" />
-            <span className="service-name">{service}</span>
-            <span className="service-status">{statuses[service]}</span>
-          </li>
-        ))}
-      </ul>
-      <a className="back-link" href="/">
-        ← home
-      </a>
-    </main>
+    <div className="app">
+      <Header />
+      <main className="shell">
+        <h1 className="status-title">Platform Status</h1>
+        <ul className="services" aria-label="platform services">
+          {SERVICES.map((service) => (
+            <li key={service} className="service">
+              <span className={`dot ${statuses[service]}`} aria-hidden="true" />
+              <span className="service-name">{service}</span>
+              <span className="service-status">{statuses[service]}</span>
+            </li>
+          ))}
+        </ul>
+        <a className="back-link" href="/">
+          ← home
+        </a>
+      </main>
+    </div>
   );
 }
 
