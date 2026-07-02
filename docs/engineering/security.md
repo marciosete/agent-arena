@@ -28,9 +28,11 @@ server-side auth guards. We lean on those.
 - **No rate limiting.** Free-tier Render services can be knocked over by volume. Mitigation:
   the demo runs **locally as the ultimate fallback** (same code, same DB) — a DoS'd public
   URL doesn't stop the show. Upgrade the Render instances for the day if you want resilience.
-- **Read endpoints are unauthenticated** (markets, flags, accounts, bets, state). That's by
-  design — it's a public sportsbook demo. IDOR on `GET /accounts/:id` exposes balances by id;
-  acceptable because there's no real PII and no cross-account mutation path.
+- **Every endpoint now requires a valid JWT** (only `GET /health` and betting `/auth/*` are
+  public), enforced across all services by the shared `@arena/service-auth` guard. Placing a bet
+  derives the account from the token (no `accountId` in the body), so there's no cross-account
+  IDOR. `GET /accounts/:id` still exposes balances to any _logged-in_ user by design (that's the
+  leaderboard) — no real PII.
 - **All three Neon databases share one role** (`neondb_owner`). Connection strings aren't
   public, but if one leaked, it reaches all three DBs. Post-event, or if you want defense in
   depth: create a scoped role per database. Rotate the shared password after the event
@@ -46,5 +48,6 @@ The worst realistic outcome is demo disruption — which the local fallback neut
 
 ## Rotate after the event
 
-`FLAGS_ADMIN_KEY`, `SIMULATOR_ADMIN_KEY`, `BETTING_ADMIN_KEY` (once created), the Neon
-password, and the `VERCEL_TOKEN` — all handled during setup and should be cycled.
+`FLAGS_ADMIN_KEY`, `SIMULATOR_ADMIN_KEY`, `BETTING_ADMIN_KEY`, the shared **`SESSION_SECRET`**
+(signs every JWT — a leak forges any session), the **`RESEND_API_KEY`**, the Neon password, and
+the `VERCEL_TOKEN` — all handled during setup and should be cycled.

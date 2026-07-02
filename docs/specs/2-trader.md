@@ -17,6 +17,13 @@ World Cup book.
 > drives the whole show from. Post a one-line progress update as you finish each. See
 > `docs/workshop/mental-map.md`.
 
+> **Auth is pre-built and REQUIRED.** trader-ops is gated behind login (`@arena/web-auth`, shared
+> with the punter app): no valid JWT → `/login`. Wrap the app in
+> `<AuthProvider bettingUrl={…}><RequireAuth>…</RequireAuth></AuthProvider>` and send the token on
+> every call (use its `apiFetch`) — **all services now require a JWT**. Any logged-in user can read
+> these boards; **flipping a flag is an admin write** and still needs the `x-admin-key` (the panel
+> prompts for it, never bundled). The leaderboard shows each account's **nickname**.
+
 ## Requirements
 
 1. **Exposure board.** Poll `GET :4002/exposure` (~3s). Table: market, status, total staked,

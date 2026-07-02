@@ -15,6 +15,7 @@
     "**/*.config.mjs",
     "**/src/main.ts",
     "**/src/app.module.ts",
+    "**/src/health/health.controller.ts",
     "**/docs/**",
     "**/.husky/**",
     "**/jscpd-report/**",

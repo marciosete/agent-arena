@@ -14,6 +14,12 @@ prices, and publish a market for every fixture in the remaining World Cup bracke
 outright tournament-winner market. Markets are **persisted**: prices survive a restart, and
 every reprice is a recorded event.
 
+> **Auth is pre-built and REQUIRED.** Register the shared `JwtAuthGuard` from `@arena/service-auth`
+> globally (`APP_GUARD`) in your `AppModule` and mark `GET /health` `@Public()` — every other
+> endpoint then requires a valid `Authorization: Bearer <jwt>` (verified with `SESSION_SECRET`).
+> Callers already send it: the apps after login, bots via their token, the simulator via a service
+> token. (Follow the same wiring the other services use.)
+
 ## Data model (design it, then `npx prisma migrate dev`)
 
 Define Prisma models in `prisma/schema.prisma` — suggested shape, refine as you see fit:

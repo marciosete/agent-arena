@@ -35,12 +35,17 @@ anyone asks why there's no database here, that's the answer — a design decisio
    `GET /state`). The champion ends up in `SimState.champion`.
 5. **`GET /state` / `POST /reset`** — as scaffolded, kept true throughout.
 
-**Security — the control plane is guarded.** `/reset` already carries `@UseGuards(AdminGuard)`;
-your `POST /play-next` and `POST /run` MUST carry it too. The guard requires the `x-admin-key`
-header to match `SIMULATOR_ADMIN_KEY` (reads stay public; local dev without the key stays open).
-The deployed simulator drives the finale — an unguarded control endpoint is a live-demo
-hijack waiting to happen. When the simulator calls betting `/settle`, send its own admin key
-in the header too (betting's settle endpoint should be guarded — coordinate with that spec).
+**Security — everything requires auth; the control plane needs admin on top.** Register the shared
+`JwtAuthGuard` from `@arena/service-auth` globally (`APP_GUARD`) and mark `GET /health` `@Public()`
+— so **every endpoint (incl. `GET /state`) requires a valid JWT**. The control endpoints
+`POST /play-next`, `POST /run`, `POST /reset` ALSO carry `@UseGuards(AdminGuard)` (`x-admin-key` =
+`SIMULATOR_ADMIN_KEY`) — defense in depth: a JWT proves _authenticated_, the admin key proves
+_authorized_ to drive the finale.
+
+**Outbound calls need a service token.** When you call pricing `/reprice` and betting `/settle`
+(both now JWT-protected), sign a **service JWT** with `signToken('simulator')` from
+`@arena/service-auth` (it reads the shared `SESSION_SECRET`) and send it as `Authorization: Bearer`.
+For betting `/settle`, ALSO send betting's `x-admin-key` (settlement moves money).
 
 ## Enterprise bar
 

@@ -3,9 +3,9 @@ import type { Account } from '@arena/contracts';
 import { AccountsService } from './accounts.service';
 
 /**
- * Public account reads — no Bearer guard, so the punter-web leaderboard and the
- * trader-ops views can list accounts without a session. Bot provisioning
- * (`POST /accounts`) lives in the admin-keyed AuthController.
+ * Account reads. Protected by the global JwtAuthGuard — callers (the punter-web
+ * leaderboard, the trader-ops views) send their session Bearer token. Bot
+ * provisioning (`POST /accounts`) lives in the admin-keyed AuthController.
  */
 @Controller('accounts')
 export class AccountsController {

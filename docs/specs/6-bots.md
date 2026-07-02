@@ -12,12 +12,19 @@ Agents built by an agent. A roster of autonomous punters with distinct personali
 accounts, study the markets, and bet real (virtual) money into the platform your colleagues are
 building. When the sim runs, they win and lose in public.
 
+> **Auth is REQUIRED — all services now need a JWT.** Bots have no inbox, so each bot
+> **provisions itself** at startup: `POST :4002/accounts { name, isBot: true }` with the
+> `x-admin-key` header (`BETTING_ADMIN_KEY` from env) → returns `{ token, account }`. Keep the
+> token and send it as `Authorization: Bearer <token>` on **every** call (reading
+> `GET :4001/markets` is JWT-protected too). No token → 401 everywhere.
+
 ## Requirements
 
-1. **Bot framework.** A bot = personality (name + emoji + strategy) + account + loop:
-   fetch markets → estimate probabilities → pick bets → size stakes → place via
-   `POST :4002/bets` (fresh `crypto.randomUUID()` idempotency key each attempt, current price
-   as `acceptedPrice`). Log every decision with its reasoning — the logs are part of the show.
+1. **Bot framework.** A bot = personality (name + emoji + strategy) + provisioned account +
+   session token + loop: fetch markets → estimate probabilities → pick bets → size stakes →
+   place via `POST :4002/bets` (Bearer token; fresh `crypto.randomUUID()` idempotency key each
+   attempt, current price as `acceptedPrice`; **no `accountId` in the body — it's derived from
+   the token**). Log every decision with its reasoning — the logs are part of the show.
 2. **The roster** (at least these four):
    - **📐 Sharp** — own Elo model from `TEAMS`; bets only when his fair price beats the market;
      Kelly staking via the scaffold's `kellyStake` (cap 10%).

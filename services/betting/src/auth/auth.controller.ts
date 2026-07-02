@@ -8,10 +8,16 @@ import {
   type RequestOtpRequest,
   type VerifyOtpRequest,
 } from '@arena/contracts';
-import { ZodValidationPipe } from '@arena/service-auth';
+import { Public, ZodValidationPipe } from '@arena/service-auth';
 import { AuthService } from './auth.service';
 import { AdminGuard } from './admin.guard';
 
+/**
+ * Token-minting and bot-provisioning routes. All are @Public() — they can't
+ * require a session JWT because they're how a caller *obtains* one. `POST
+ * /accounts` stays admin-keyed via {@link AdminGuard}.
+ */
+@Public()
 @Controller()
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
