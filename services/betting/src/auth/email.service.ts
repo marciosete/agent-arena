@@ -26,10 +26,12 @@ export class EmailService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: process.env.RESEND_FROM ?? 'onboarding@resend.dev',
+          from: process.env.RESEND_FROM ?? 'Agent Arena <onboarding@resend.dev>',
           to: [email],
-          subject: 'Your code',
-          html: `<p>Your Agent Arena verification code is <strong>${code}</strong>. It expires in 10 minutes.</p>`,
+          subject: `${code} is your Agent Arena sign-in code`,
+          // A plain-text alternative alongside the HTML materially improves inbox placement.
+          text: `Your Agent Arena sign-in code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
+          html: `<p>Your Agent Arena sign-in code is <strong style="font-size:20px">${code}</strong>.</p><p>It expires in 10 minutes. If you didn't request this, you can ignore this email.</p>`,
         }),
       });
       if (!response.ok) {

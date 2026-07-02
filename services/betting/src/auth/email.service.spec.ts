@@ -50,10 +50,11 @@ describe('EmailService', () => {
     expect(init.method).toBe('POST');
     expect(init.headers.Authorization).toBe('Bearer resend-key');
     const body = JSON.parse(init.body);
-    expect(body.from).toBe('onboarding@resend.dev');
+    expect(body.from).toBe('Agent Arena <onboarding@resend.dev>');
     expect(body.to).toEqual([EMAIL]);
-    expect(body.subject).toBe('Your code');
+    expect(body.subject).toContain(CODE);
     expect(body.html).toContain(CODE);
+    expect(body.text).toContain(CODE);
   });
 
   it('uses RESEND_FROM when set', async () => {
