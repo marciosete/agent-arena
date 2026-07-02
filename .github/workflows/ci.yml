@@ -73,3 +73,41 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Deploy is GATED: only after quality + secret gates are green, only on main.
+  # Vercel's own git auto-deploy is disabled (apps/*/vercel.json) — this job is
+  # the sole path to production for the frontends. Render services gate
+  # themselves on these same checks via autoDeployTrigger: checksPass.
+  deploy:
+    name: Deploy Frontends (Vercel)
+    runs-on: ubuntu-latest
+    needs: [quality, secrets]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 15
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: team_6l5x9txAMxriUA8f67Ilkox1
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Skip notice (no VERCEL_TOKEN secret yet)
+        if: env.VERCEL_TOKEN == ''
+        run: echo "VERCEL_TOKEN secret not configured — skipping frontend deploys."
+
+      - name: Deploy punter-web
+        if: env.VERCEL_TOKEN != ''
+        env:
+          VERCEL_PROJECT_ID: prj_YKTWnj59IvAXUaVowdoJLr8qaIlk
+        run: npx vercel@48 deploy --prod --yes --token "$VERCEL_TOKEN"
+
+      - name: Deploy trader-ops
+        if: env.VERCEL_TOKEN != ''
+        env:
+          VERCEL_PROJECT_ID: prj_LuT4YqcHQ6BneNBHh3mD7kwgajbC
+        run: npx vercel@48 deploy --prod --yes --token "$VERCEL_TOKEN"
