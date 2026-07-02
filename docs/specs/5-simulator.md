@@ -1,5 +1,5 @@
 > **Kickoff — session 5.** Launch with `/goal` — see `docs/workshop/kickoff-prompts.md` for the exact
-> condition. Build rules: `docs/live-build.md`. CLAUDE.md (auto-loaded) has the conventions.
+> condition. How goal-driven tasks work: `docs/engineering/goal-oriented-tasks.md`. CLAUDE.md (auto-loaded) has the conventions.
 
 # Workstream: Tournament Simulator
 

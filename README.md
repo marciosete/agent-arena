@@ -38,7 +38,7 @@ docs/engineering/      architecture, definition-of-done, goal-oriented-tasks, de
 docs/domain/           glossary — the betting domain's ubiquitous language
 docs/product/          platform overview
 docs/specs/            one spec per workstream
-docs/workshop/         run of show, kickoff prompts, mental map (live-build scaffolding)
+docs/workshop/         run of show, kickoff prompts, mental map (event scaffolding)
 render.yaml            Render blueprint — 4 services auto-deploy from main
 ```
 
