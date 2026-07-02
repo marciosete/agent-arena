@@ -124,7 +124,7 @@ function HomePage() {
     <main className="shell">
       <Nav flags={flags} />
       <h1>Road to the Final</h1>
-      <p className="sub">The World Cup knockout stage. Every match. Every price.</p>
+      <p className="sub">The World Cup knockout stage.</p>
     </main>
   );
 }
