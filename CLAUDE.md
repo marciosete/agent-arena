@@ -61,7 +61,8 @@ Everything speaks the REST surface defined in `contracts/src/api.ts` (ports, end
 request/response zod schemas). Seed data (real World Cup 2026 bracket) is exported as
 `TEAMS` and `FIXTURES` from `@arena/contracts`.
 
-Your spec lives at `docs/specs/<workstream>.md`. Read it before writing code.
+Your spec lives in `docs/specs/`, named by launch order (`1-punter.md`, `2-trader.md`,
+`3-pricing.md`, `4-betting.md`, `5-simulator.md`, `6-bots.md`). Read yours before writing code.
 
 ## Commands
 

@@ -1,3 +1,7 @@
+> **Kickoff — session 4.** From a repo-root session: `/goal @docs/specs/4-betting.md`.
+> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
+> Work strictly test-first — money moves here. Post a one-line progress update per milestone.
+
 # Workstream: Betting Core
 
 **You own:** `services/betting/` — nothing else.

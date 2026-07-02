@@ -1,3 +1,7 @@
+> **Kickoff — session 2.** From a repo-root session: `/goal @docs/specs/2-trader.md`.
+> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
+> Post a one-line progress update as you finish each milestone.
+
 # Workstream: Trader Ops
 
 **You own:** `apps/trader-ops/` — nothing else.

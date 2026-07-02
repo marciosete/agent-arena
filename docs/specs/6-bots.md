@@ -1,3 +1,7 @@
+> **Kickoff — session 6.** From a repo-root session: `/goal @docs/specs/6-bots.md`.
+> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
+> Post a one-line progress update as you finish each milestone.
+
 # Workstream: Bots
 
 **You own:** `bots/` — nothing else.

@@ -1,3 +1,7 @@
+> **Kickoff — session 3.** From a repo-root session: `/goal @docs/specs/3-pricing.md`.
+> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
+> Start in plan mode and get your model approved. Post a one-line progress update per milestone.
+
 # Workstream: Pricing Engine
 
 **You own:** `services/pricing/` — nothing else.

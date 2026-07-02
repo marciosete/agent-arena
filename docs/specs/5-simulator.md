@@ -1,3 +1,7 @@
+> **Kickoff — session 5.** From a repo-root session: `/goal @docs/specs/5-simulator.md`.
+> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
+> Post a one-line progress update as you finish each milestone.
+
 # Workstream: Tournament Simulator
 
 **You own:** `services/simulator/` — nothing else.

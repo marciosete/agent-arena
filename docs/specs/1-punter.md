@@ -1,3 +1,7 @@
+> **Kickoff — session 1.** From a repo-root session: `/goal @docs/specs/1-punter.md`.
+> CLAUDE.md auto-loads; skim `contracts/src/api.ts` + `contracts/src/schemas.ts` first.
+> Post a one-line progress update as you finish each milestone.
+
 # Workstream: Punter Web
 
 **You own:** `apps/punter-web/` — nothing else.
