@@ -1,8 +1,11 @@
 import { BadGatewayException, NotFoundException } from '@nestjs/common';
 import { BASE_URLS, type Market } from '@arena/contracts';
 import { verifyToken } from '@arena/service-auth';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingClient } from './pricing-client';
+
+/** The ambient value (a developer's deployed-topology override) to restore. */
+const ORIGINAL_PRICING_URL = process.env.PRICING_URL;
 
 const OPEN_MARKET: Market = {
   id: 'r16-1',
@@ -31,11 +34,19 @@ describe('PricingClient', () => {
     client = new PricingClient();
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
+    delete process.env.PRICING_URL;
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
-    delete process.env.PRICING_URL;
+  });
+
+  afterAll(() => {
+    if (ORIGINAL_PRICING_URL === undefined) {
+      delete process.env.PRICING_URL;
+    } else {
+      process.env.PRICING_URL = ORIGINAL_PRICING_URL;
+    }
   });
 
   it('fetches the match-winner market for a fixture-derived market id', async () => {
@@ -80,6 +91,36 @@ describe('PricingClient', () => {
       'https://pricing.example.test/markets/r16-1',
       expect.anything()
     );
+  });
+
+  it('falls back to the default URL when PRICING_URL is set but EMPTY (.env copied as-is)', async () => {
+    process.env.PRICING_URL = '';
+    fetchMock.mockResolvedValue(jsonResponse(OPEN_MARKET));
+
+    await client.fetchMarket('r16-1');
+
+    expect(fetchMock).toHaveBeenCalledWith(`${BASE_URLS.pricing}/markets/r16-1`, expect.anything());
+  });
+
+  it('strips a pasted trailing slash so routes never see a double slash', async () => {
+    process.env.PRICING_URL = 'https://pricing.example.test/';
+    fetchMock.mockResolvedValue(jsonResponse(OPEN_MARKET));
+
+    await client.fetchMarket('r16-1');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://pricing.example.test/markets/r16-1',
+      expect.anything()
+    );
+  });
+
+  it('bounds every request with an abort timeout so a hung pricing cannot wedge bets', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(OPEN_MARKET));
+
+    await client.fetchMarket('r16-1');
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('maps a pricing 404 to NotFoundException (unknown market)', async () => {

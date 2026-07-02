@@ -40,7 +40,7 @@ function pendingBet(overrides: Partial<Record<string, unknown>> = {}) {
 
 function makeMocks() {
   const tx = {
-    bet: { findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+    bet: { findMany: vi.fn(), updateMany: vi.fn() },
     account: { update: vi.fn() },
     ledgerEntry: { create: vi.fn() },
   };
@@ -50,6 +50,11 @@ function makeMocks() {
   return { tx, prisma };
 }
 
+/** Mimic the DB: a claim on one id succeeds; a batch matches all its ids. */
+function updateManyByWhere({ where }: { where: { id: string | { in: string[] } } }) {
+  return Promise.resolve({ count: typeof where.id === 'string' ? 1 : where.id.in.length });
+}
+
 describe('SettlementService.settle', () => {
   let mocks: ReturnType<typeof makeMocks>;
   let service: SettlementService;
@@ -57,8 +62,7 @@ describe('SettlementService.settle', () => {
   beforeEach(() => {
     mocks = makeMocks();
     mocks.tx.bet.findMany.mockResolvedValue([]);
-    mocks.tx.bet.update.mockResolvedValue({});
-    mocks.tx.bet.updateMany.mockResolvedValue({ count: 0 });
+    mocks.tx.bet.updateMany.mockImplementation(updateManyByWhere);
     mocks.tx.account.update.mockImplementation(({ where }: { where: { id: string } }) =>
       Promise.resolve({ id: where.id, balance: 10_055 })
     );
@@ -71,13 +75,14 @@ describe('SettlementService.settle', () => {
 
     const response = await service.settle(settleRequest());
 
+    // The claim is guarded on status so only a still-pending bet can pay out.
+    expect(mocks.tx.bet.updateMany).toHaveBeenCalledWith({
+      where: { id: 'bet-1', status: 'pending' },
+      data: { status: 'won', settledAt: new Date(SETTLED_AT_ISO) },
+    });
     expect(mocks.tx.account.update).toHaveBeenCalledWith({
       where: { id: WINNER_ACCOUNT },
       data: { balance: { increment: 155 } },
-    });
-    expect(mocks.tx.bet.update).toHaveBeenCalledWith({
-      where: { id: 'bet-1' },
-      data: { status: 'won', settledAt: new Date(SETTLED_AT_ISO) },
     });
     expect(mocks.tx.ledgerEntry.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -90,6 +95,44 @@ describe('SettlementService.settle', () => {
     expect(response).toEqual({ settledBets: 1, totalPaidOut: 155 });
   });
 
+  it('skips the payout entirely when a concurrent settlement already claimed the bet', async () => {
+    mocks.tx.bet.findMany.mockResolvedValue([pendingBet()]);
+    mocks.tx.bet.updateMany.mockResolvedValue({ count: 0 });
+
+    const response = await service.settle(settleRequest());
+
+    expect(mocks.tx.account.update).not.toHaveBeenCalled();
+    expect(mocks.tx.ledgerEntry.create).not.toHaveBeenCalled();
+    expect(response).toEqual({ settledBets: 0, totalPaidOut: 0 });
+  });
+
+  it('gives the settlement transaction an explicit timeout sized for finale volume', async () => {
+    await service.settle(settleRequest());
+
+    expect(mocks.prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      timeout: 120_000,
+      maxWait: 10_000,
+    });
+  });
+
+  it('snaps a drifted post-credit balance back to cents before writing the ledger', async () => {
+    mocks.tx.bet.findMany.mockResolvedValue([pendingBet()]);
+    mocks.tx.account.update.mockResolvedValueOnce({
+      id: WINNER_ACCOUNT,
+      balance: 10_054.999999999998,
+    });
+
+    await service.settle(settleRequest());
+
+    expect(mocks.tx.account.update).toHaveBeenLastCalledWith({
+      where: { id: WINNER_ACCOUNT },
+      data: { balance: 10_055 },
+    });
+    expect(mocks.tx.ledgerEntry.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ balanceAfter: 10_055 }),
+    });
+  });
+
   it('marks every other pending bet on a settled market lost — no credit, no ledger entry', async () => {
     mocks.tx.bet.findMany.mockResolvedValue([
       pendingBet({ id: 'loser-1', selectionId: LOSING_SELECTION }),
@@ -99,7 +142,7 @@ describe('SettlementService.settle', () => {
     const response = await service.settle(settleRequest());
 
     expect(mocks.tx.bet.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: ['loser-1', 'loser-2'] } },
+      where: { id: { in: ['loser-1', 'loser-2'] }, status: 'pending' },
       data: { status: 'lost', settledAt: new Date(SETTLED_AT_ISO) },
     });
     expect(mocks.tx.account.update).not.toHaveBeenCalled();
@@ -116,7 +159,6 @@ describe('SettlementService.settle', () => {
     expect(mocks.tx.bet.findMany).toHaveBeenCalledWith({
       where: { marketId: { in: [MARKET_ID] }, status: 'pending' },
     });
-    expect(mocks.tx.bet.update).not.toHaveBeenCalled();
     expect(mocks.tx.bet.updateMany).not.toHaveBeenCalled();
     expect(mocks.tx.account.update).not.toHaveBeenCalled();
     expect(response).toEqual({ settledBets: 0, totalPaidOut: 0 });

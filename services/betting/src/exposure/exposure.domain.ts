@@ -2,52 +2,55 @@ import type { ExposureReport } from '@arena/contracts';
 import { roundMoney } from '../bets/domain';
 
 /**
- * Liability maths as a pure function over persisted bets. marketName was
- * denormalised from pricing at placement, so the report needs no
- * cross-service call; a market's status is derived from its own bets —
- * 'settled' once settlement has cleared every pending bet, 'open' while
- * money is still at risk.
+ * Liability maths as a pure function over per-(market, selection, status)
+ * aggregates — the database does the summing (a Prisma groupBy), so the
+ * report costs a handful of rows however many bets exist. marketName was
+ * denormalised from pricing at placement, so no cross-service call is needed;
+ * a market's status is derived from its own bets — 'settled' once settlement
+ * (or voiding) has cleared every pending bet, 'open' while money is at risk.
  */
 
 type ExposureMarket = ExposureReport['markets'][number];
 
-/** The slice of a Bet row the exposure maths needs. */
-export interface ExposureBet {
+/** One groupBy row: the bets on one selection of one market in one status. */
+export interface ExposureAggregate {
   marketId: string;
   marketName: string;
   selectionId: string;
-  stake: number;
-  potentialReturn: number;
   status: string;
+  betCount: number;
+  stakeSum: number;
+  payoutSum: number;
 }
 
 interface MarketAccumulator {
   marketName: string;
   totalStaked: number;
   betCount: number;
-  settledCount: number;
+  resolvedCount: number;
   payoutBySelection: Map<string, number>;
 }
 
-function accumulate(byMarket: Map<string, MarketAccumulator>, bet: ExposureBet): void {
-  let market = byMarket.get(bet.marketId);
+function accumulate(byMarket: Map<string, MarketAccumulator>, row: ExposureAggregate): void {
+  let market = byMarket.get(row.marketId);
   if (!market) {
     market = {
-      marketName: bet.marketName,
+      marketName: row.marketName,
       totalStaked: 0,
       betCount: 0,
-      settledCount: 0,
+      resolvedCount: 0,
       payoutBySelection: new Map(),
     };
-    byMarket.set(bet.marketId, market);
+    byMarket.set(row.marketId, market);
   }
-  if (bet.status === 'pending') {
-    market.totalStaked += bet.stake;
-    market.betCount += 1;
-    const payout = market.payoutBySelection.get(bet.selectionId) ?? 0;
-    market.payoutBySelection.set(bet.selectionId, payout + bet.potentialReturn);
-  } else if (bet.status === 'won' || bet.status === 'lost') {
-    market.settledCount += 1;
+  if (row.status === 'pending') {
+    market.totalStaked += row.stakeSum;
+    market.betCount += row.betCount;
+    const payout = market.payoutBySelection.get(row.selectionId) ?? 0;
+    market.payoutBySelection.set(row.selectionId, payout + row.payoutSum);
+  } else {
+    // won, lost or void: the money is no longer at risk on this market.
+    market.resolvedCount += row.betCount;
   }
 }
 
@@ -56,10 +59,10 @@ function accumulate(byMarket: Map<string, MarketAccumulator>, bet: ExposureBet):
  * desk's worst case: the maximum, across the market's selections, of the
  * summed pending payouts on that selection (exactly one selection wins).
  */
-export function buildExposureMarkets(bets: ExposureBet[]): ExposureMarket[] {
+export function buildExposureMarkets(rows: ExposureAggregate[]): ExposureMarket[] {
   const byMarket = new Map<string, MarketAccumulator>();
-  for (const bet of bets) {
-    accumulate(byMarket, bet);
+  for (const row of rows) {
+    accumulate(byMarket, row);
   }
 
   return [...byMarket.entries()]
@@ -70,7 +73,9 @@ export function buildExposureMarkets(bets: ExposureBet[]): ExposureMarket[] {
       maxLiability: roundMoney(Math.max(0, ...market.payoutBySelection.values())),
       betCount: market.betCount,
       status:
-        market.betCount === 0 && market.settledCount > 0 ? ('settled' as const) : ('open' as const),
+        market.betCount === 0 && market.resolvedCount > 0
+          ? ('settled' as const)
+          : ('open' as const),
     }))
     .sort((a, b) => a.marketId.localeCompare(b.marketId));
 }

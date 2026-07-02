@@ -5,6 +5,18 @@ import { resolveMarketPath } from '../bets/domain';
 
 const PRICING_UNAVAILABLE = 'Pricing service unavailable';
 
+/** A hung pricing service must fail bets fast (502), not wedge them forever. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
+/**
+ * Tolerate the two classic env-var footguns: `PRICING_URL=` set-but-empty
+ * (dotenv makes it '', which `??` would keep) and a pasted trailing slash
+ * (which would 404 as a `//markets/...` route).
+ */
+function pricingBaseUrl(): string {
+  return (process.env.PRICING_URL || BASE_URLS.pricing).replace(/\/+$/, '');
+}
+
 /**
  * The one runtime call betting makes to another service (integration.md §2):
  * fetch the live market at bet time to validate that it is open and that the
@@ -15,11 +27,11 @@ const PRICING_UNAVAILABLE = 'Pricing service unavailable';
 @Injectable()
 export class PricingClient {
   async fetchMarket(marketId: string): Promise<Market> {
-    const baseUrl = process.env.PRICING_URL ?? BASE_URLS.pricing;
     let response: Response;
     try {
-      response = await fetch(`${baseUrl}${resolveMarketPath(marketId)}`, {
+      response = await fetch(`${pricingBaseUrl()}${resolveMarketPath(marketId)}`, {
         headers: { authorization: `Bearer ${signToken('betting')}` },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch {
       throw new BadGatewayException(PRICING_UNAVAILABLE);

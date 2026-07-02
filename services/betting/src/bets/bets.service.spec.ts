@@ -62,8 +62,8 @@ function betRow(overrides: Partial<Record<string, unknown>> = {}) {
 
 function makeMocks() {
   const tx = {
-    account: { findUnique: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
-    bet: { create: vi.fn() },
+    account: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
+    bet: { create: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
     ledgerEntry: { create: vi.fn() },
   };
   const prisma = {
@@ -83,8 +83,11 @@ describe('BetsService.placeBet', () => {
     mocks.prisma.bet.findUnique.mockResolvedValue(null);
     mocks.pricing.fetchMarket.mockResolvedValue(OPEN_MARKET);
     mocks.tx.account.updateMany.mockResolvedValue({ count: 1 });
+    mocks.tx.account.update.mockResolvedValue({ id: ACCOUNT_ID, balance: 10_000 });
     mocks.tx.account.findUniqueOrThrow.mockResolvedValue({ id: ACCOUNT_ID, balance: 9_900 });
     mocks.tx.bet.create.mockResolvedValue(betRow());
+    mocks.tx.bet.updateMany.mockResolvedValue({ count: 1 });
+    mocks.tx.bet.findUniqueOrThrow.mockResolvedValue(betRow());
     mocks.tx.ledgerEntry.create.mockResolvedValue({});
     service = new BetsService(
       mocks.prisma as unknown as PrismaService,
@@ -234,6 +237,106 @@ describe('BetsService.placeBet', () => {
     await expect(service.placeBet(ACCOUNT_ID, placeRequest())).rejects.toThrow(
       'ledger write failed'
     );
+  });
+
+  it('rejects a sub-cent stake with 400 BEFORE any pricing call or debit', async () => {
+    await expect(service.placeBet(ACCOUNT_ID, placeRequest({ stake: 0.004 }))).rejects.toBeInstanceOf(
+      BadRequestException
+    );
+    expect(mocks.pricing.fetchMarket).not.toHaveBeenCalled();
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('quantises the stake to cents so debit, bet and ledger carry the same number', async () => {
+    await service.placeBet(ACCOUNT_ID, placeRequest({ stake: 10.106 }));
+
+    expect(mocks.tx.account.updateMany).toHaveBeenCalledWith({
+      where: { id: ACCOUNT_ID, balance: { gte: 10.11 } },
+      data: { balance: { decrement: 10.11 } },
+    });
+    expect(mocks.tx.bet.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ stake: 10.11 }),
+    });
+    expect(mocks.tx.ledgerEntry.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ delta: -10.11 }),
+    });
+  });
+
+  it('snaps a drifted wallet balance back to cents inside the placement transaction', async () => {
+    mocks.tx.account.findUniqueOrThrow.mockResolvedValue({
+      id: ACCOUNT_ID,
+      balance: 9_899.900000000001,
+    });
+
+    await service.placeBet(ACCOUNT_ID, placeRequest());
+
+    expect(mocks.tx.account.update).toHaveBeenCalledWith({
+      where: { id: ACCOUNT_ID },
+      data: { balance: 9_899.9 },
+    });
+    expect(mocks.tx.ledgerEntry.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ balanceAfter: 9_899.9 }),
+    });
+  });
+
+  it('rejects a replayed key whose payload differs from the original bet (409)', async () => {
+    mocks.prisma.bet.findUnique.mockResolvedValue(betRow());
+
+    await expect(
+      service.placeBet(ACCOUNT_ID, placeRequest({ selectionId: 'sel-chi', stake: 250 }))
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('voids and refunds a bet whose market settled between the price check and the commit', async () => {
+    // The window: open at validation time, settled by the post-commit re-check.
+    mocks.pricing.fetchMarket
+      .mockResolvedValueOnce(OPEN_MARKET)
+      .mockResolvedValueOnce({ ...OPEN_MARKET, status: 'settled' });
+    mocks.tx.bet.findUniqueOrThrow.mockResolvedValue(
+      betRow({ status: 'void', settledAt: new Date(PLACED_AT_ISO) })
+    );
+
+    const bet = await service.placeBet(ACCOUNT_ID, placeRequest());
+
+    expect(mocks.tx.bet.updateMany).toHaveBeenCalledWith({
+      where: { id: BET_ID, status: 'pending' },
+      data: { status: 'void', settledAt: expect.any(Date) },
+    });
+    expect(mocks.tx.account.update).toHaveBeenCalledWith({
+      where: { id: ACCOUNT_ID },
+      data: { balance: { increment: 100 } },
+    });
+    expect(mocks.tx.ledgerEntry.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ delta: 100, reason: 'bet-voided', refBetId: BET_ID }),
+    });
+    expect(bet.status).toBe('void');
+  });
+
+  it('does NOT refund when settlement already resolved the bet (guarded void claim)', async () => {
+    mocks.pricing.fetchMarket
+      .mockResolvedValueOnce(OPEN_MARKET)
+      .mockResolvedValueOnce({ ...OPEN_MARKET, status: 'settled' });
+    mocks.tx.bet.updateMany.mockResolvedValue({ count: 0 });
+    mocks.tx.bet.findUniqueOrThrow.mockResolvedValue(
+      betRow({ status: 'won', settledAt: new Date(PLACED_AT_ISO) })
+    );
+
+    const bet = await service.placeBet(ACCOUNT_ID, placeRequest());
+
+    expect(mocks.tx.account.update).not.toHaveBeenCalled();
+    expect(bet.status).toBe('won');
+  });
+
+  it('leaves the bet pending when the post-commit market re-check fails (settlement stays authoritative)', async () => {
+    mocks.pricing.fetchMarket
+      .mockResolvedValueOnce(OPEN_MARKET)
+      .mockRejectedValueOnce(new Error('pricing unavailable'));
+
+    const bet = await service.placeBet(ACCOUNT_ID, placeRequest());
+
+    expect(bet.status).toBe('pending');
+    expect(mocks.tx.bet.updateMany).not.toHaveBeenCalled();
   });
 });
 
