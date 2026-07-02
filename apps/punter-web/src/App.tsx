@@ -103,7 +103,10 @@ function useServiceStatuses(): Record<ServiceKey, ServiceStatus> {
 
 function Nav({ flags }: Readonly<{ flags: FeatureFlag[] }>) {
   const enabled = new Set(flags.filter((flag) => flag.enabled).map((flag) => flag.key));
-  const items = NAV_ITEMS.filter((item) => enabled.has(item.flag));
+  // Local dev (`npm run dev`) shows every feature so you never flip a production flag just to
+  // build. Production builds gate strictly on flags — that's the live-release mechanism.
+  // Vite sets `import.meta.env.DEV` true in the dev server, false in production builds.
+  const items = NAV_ITEMS.filter((item) => import.meta.env.DEV || enabled.has(item.flag));
   if (items.length === 0) {
     return null;
   }

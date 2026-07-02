@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 
@@ -46,11 +46,16 @@ function stubFetch(options: {
   );
 }
 
-describe('home page', () => {
+describe('home page — production flag gating (DEV false)', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     window.history.pushState({}, '', '/');
+  });
+
+  beforeEach(() => {
+    vi.stubEnv('DEV', false);
   });
 
   it('renders the hero with no nav while every feature is dark', async () => {
@@ -83,6 +88,25 @@ describe('home page', () => {
     render(<App />);
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(0));
     expect(screen.queryByLabelText('primary')).toBeNull();
+  });
+});
+
+describe('home page — local dev bypass (DEV true)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    window.history.pushState({}, '', '/');
+  });
+
+  it('shows every feature regardless of flags', async () => {
+    vi.stubEnv('DEV', true);
+    stubFetch({ flags: [] }); // all dark
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Markets')).toBeTruthy());
+    for (const label of ['Markets', 'Bet Slip', 'My Bets', 'Bracket']) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
   });
 });
 

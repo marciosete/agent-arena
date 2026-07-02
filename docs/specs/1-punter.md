@@ -41,7 +41,10 @@ radiating from a glowing golden trophy. This is the screen everyone photographs.
    `punter-bet-slip` → bet slip, `punter-my-bets` → my bets, `punter-bracket` → the bracket,
    `punter-confetti` → confetti. Dark means _absent_ — no teasers, no disabled stubs. A flag
    flip must reveal the feature within seconds, no reload. This is how the host releases
-   features live during the show.
+   features live during the show. **Local dev shows everything:** gate on
+   `import.meta.env.DEV || flag.enabled`, so `npm run dev` reveals every feature (Vite sets
+   `DEV` true in the dev server, false in production builds) — you never flip a production flag
+   just to develop.
 7. The scaffold already provides the two release-story surfaces: the **flag-driven nav**
    (a feature's nav item appears the moment its flag flips) and the **`/status` page**
    (service health dots). Build each feature as the page behind its nav item, and keep both
@@ -55,7 +58,7 @@ Render services.
 
 - A typed fetch layer that zod-parses every response against contract schemas — no `any` data.
 - Components tested with Testing Library (mocked fetch): markets render, slip math, 409 flow,
-  bracket advancement rendering. ≥80% coverage on everything you commit; zero lint warnings.
+  bracket advancement rendering. ≥85% coverage on everything you commit; zero lint warnings.
 - No new dependencies — SVG by hand, CSS animations, native fetch.
 
 ## Definition of Done
@@ -63,8 +66,8 @@ Render services.
 Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus prove
 these — paste the name of the test for each:
 
-- Each feature renders **only when its flag is on** (Markets, Bet Slip, My Bets, Bracket,
-  Confetti) — a Testing Library test proves the flag gating
+- Each feature is gated on `import.meta.env.DEV || flag.enabled` — tests prove both modes: with
+  `DEV` false (production), dark features are hidden; with `DEV` true (local dev), everything shows
 - The bet slip submits with a fresh idempotency key and recovers gracefully from a 409
 
 ## Demo moment
