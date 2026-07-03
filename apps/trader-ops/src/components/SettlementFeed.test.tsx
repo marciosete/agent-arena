@@ -8,8 +8,17 @@ import { SettlementFeed } from './SettlementFeed';
 const SLOW = 600_000;
 
 function baseState(): SimState {
+  // The seed carries the real results already played (morning-of bracket
+  // update) — reset them so each test stages exactly the results it asserts.
+  const fixtures = structuredClone(FIXTURES).map((fixture) => ({
+    ...fixture,
+    status: 'scheduled' as const,
+    homeScore: null,
+    awayScore: null,
+    winnerTeamId: null,
+  }));
   return {
-    fixtures: structuredClone(FIXTURES),
+    fixtures,
     champion: null,
     playedFixtureIds: [],
     remainingFixtureIds: [],
