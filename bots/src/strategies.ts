@@ -33,7 +33,7 @@ interface PricedSelection {
 }
 
 export const KELLY_CAP = 0.1;
-export const LONGSHOT_PRICE = 3.0;
+export const LONGSHOT_PRICE = 3;
 export const MUG_STAKE = 200;
 export const STEADY_FRACTION = 0.05;
 export const CHASER_BASE_STAKE = 100;
@@ -165,9 +165,12 @@ export const steadyStrategy: Strategy = (markets, bankroll, _history, _rng) => {
   if (board.length === 0) {
     return [];
   }
-  const favourite = board.reduce((best, candidate) =>
-    candidate.selection.price < best.selection.price ? candidate : best
-  );
+  const favourite = board
+    .slice(1)
+    .reduce(
+      (best, candidate) => (candidate.selection.price < best.selection.price ? candidate : best),
+      board[0]
+    );
   const stake = toMoney(bankroll * STEADY_FRACTION);
   if (stake < MIN_STAKE) {
     return [];
@@ -206,9 +209,15 @@ export const chaserStrategy: Strategy = (markets, bankroll, history, _rng) => {
   if (board.length === 0) {
     return [];
   }
-  const nearEvens = board.reduce((best, candidate) =>
-    Math.abs(candidate.selection.price - 2) < Math.abs(best.selection.price - 2) ? candidate : best
-  );
+  const nearEvens = board
+    .slice(1)
+    .reduce(
+      (best, candidate) =>
+        Math.abs(candidate.selection.price - 2) < Math.abs(best.selection.price - 2)
+          ? candidate
+          : best,
+      board[0]
+    );
   const losses = consecutiveLosses(history);
   const stake = toMoney(Math.min(CHASER_BASE_STAKE * 2 ** losses, bankroll, OPENING_BALANCE));
   if (stake < MIN_STAKE) {

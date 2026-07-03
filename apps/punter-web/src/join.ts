@@ -27,5 +27,5 @@ export function selectionForTeam(
 }
 
 export function isBettable(market: Market | undefined): market is Market {
-  return market !== undefined && market.status === 'open';
+  return market?.status === 'open';
 }

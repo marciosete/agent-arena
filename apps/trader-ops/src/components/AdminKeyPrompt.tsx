@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SyntheticEvent } from 'react';
 
 export interface AdminKeyPromptProps {
   /** What the key unlocks, e.g. "flag flips" or "finale controls". */
@@ -15,7 +15,7 @@ export interface AdminKeyPromptProps {
 export function AdminKeyPrompt({ label, keyName, onSubmit }: Readonly<AdminKeyPromptProps>) {
   const [value, setValue] = useState('');
 
-  function handleSubmit(event: FormEvent): void {
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>): void {
     event.preventDefault();
     const trimmed = value.trim();
     if (trimmed) {
@@ -27,7 +27,7 @@ export function AdminKeyPrompt({ label, keyName, onSubmit }: Readonly<AdminKeyPr
   return (
     <form className="keyform" onSubmit={handleSubmit}>
       <label className="keyform-label">
-        Admin key required for {label} (<code>{keyName}</code>)
+        Admin key required for {label} (<code>{keyName}</code>){' '}
         <input
           className="input"
           type="password"

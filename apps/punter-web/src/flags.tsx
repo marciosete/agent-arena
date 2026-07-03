@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import type { FeatureFlag, FlagKey } from '@arena/contracts';
 import { useApi } from '@arena/web-auth';
 import { getFlags } from './api';
@@ -28,7 +28,8 @@ export function FlagsProvider({ children }: Readonly<{ children: ReactNode }>) {
     useCallback(async () => (await getFlags(apiFetch)) ?? [], [apiFetch]),
     POLL_MS.flags
   );
-  return <FlagsContext.Provider value={flags ?? []}>{children}</FlagsContext.Provider>;
+  const value = useMemo(() => flags ?? [], [flags]);
+  return <FlagsContext.Provider value={value}>{children}</FlagsContext.Provider>;
 }
 
 /**

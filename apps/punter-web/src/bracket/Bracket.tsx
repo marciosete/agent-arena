@@ -529,13 +529,13 @@ function HoverTip({ hover, layout, markets, outright }: Readonly<HoverTipProps>)
     top: `${Math.min(92, Math.max(8, toPercent(anchor.y)))}%`,
   };
   return (
-    <div className="bracket-tip" style={style} role="status">
+    <output className="bracket-tip" style={style}>
       {hover.kind === 'team' ? (
         <TeamTipText teamId={hover.teamId} market={market} outright={outright} />
       ) : (
         <FixtureTipText fixture={fl.fixture} market={market} />
       )}
-    </div>
+    </output>
   );
 }
 
@@ -601,7 +601,7 @@ function FixtureCard({ fl, market, slipOn, onPick, onClose }: Readonly<FixtureCa
   const { fixture } = fl;
   const bettable = isBettable(market) && slipOn;
   return (
-    <div className="bracket-card" style={cardStyle(fl.labelPos)} role="dialog" aria-label="Fixture">
+    <dialog className="bracket-card" style={cardStyle(fl.labelPos)} aria-label="Fixture" open>
       <div className="card-head">
         <span className="card-round">{ROUND_LABEL[fixture.round]}</span>
         <button type="button" className="card-close" aria-label="Close" onClick={onClose}>
@@ -619,7 +619,7 @@ function FixtureCard({ fl, market, slipOn, onPick, onClose }: Readonly<FixtureCa
         />
       ))}
       <p className="card-status">{fixtureStatusLine(fixture, market)}</p>
-    </div>
+    </dialog>
   );
 }
 
@@ -661,7 +661,7 @@ function TeamRow({ teamId, fixture, market, bettable, onPick }: Readonly<TeamRow
       <span className="card-team-name">
         {teamFlag(teamId)} {teamName(teamId)}
       </span>
-      {score !== null ? <span className="card-score">{score}</span> : null}
+      {score === null ? null : <span className="card-score">{score}</span>}
       {score === null && selection && bettable && market ? (
         <button
           type="button"
@@ -689,11 +689,11 @@ interface OutrightCardProps {
 function OutrightCard({ outright, slipOn, onPick, onClose }: Readonly<OutrightCardProps>) {
   const bettable = isBettable(outright ?? undefined) && slipOn;
   return (
-    <div
+    <dialog
       className="bracket-card outright-card"
       style={{ left: '50%', top: '50%' }}
-      role="dialog"
       aria-label="Tournament winner market"
+      open
     >
       <div className="card-head">
         <span className="card-round">{outright?.name ?? 'Tournament winner'}</span>
@@ -725,7 +725,7 @@ function OutrightCard({ outright, slipOn, onPick, onClose }: Readonly<OutrightCa
       ) : (
         <p className="card-status">The title market isn’t priced yet.</p>
       )}
-    </div>
+    </dialog>
   );
 }
 

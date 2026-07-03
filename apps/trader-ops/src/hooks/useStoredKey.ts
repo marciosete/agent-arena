@@ -8,10 +8,19 @@ function read(storageKey: string): string | null {
   }
 }
 
+/**
+ * Admin keys are opaque hex / base64url tokens. Strip whitespace and anything
+ * outside that safe charset before persisting — this both neutralises tainted
+ * input reaching storage and makes accidental quoting/padding harmless.
+ */
+function sanitize(value: string): string {
+  return value.trim().replace(/[^A-Za-z0-9._~+/=-]/g, '');
+}
+
 function write(storageKey: string, value: string | null): void {
   try {
     if (value) {
-      localStorage.setItem(storageKey, value);
+      localStorage.setItem(storageKey, sanitize(value));
     } else {
       localStorage.removeItem(storageKey);
     }
@@ -26,15 +35,15 @@ function write(storageKey: string, value: string | null): void {
  * e.g. after the service rejects the key).
  */
 export function useStoredKey(storageKey: string): [string | null, (key: string | null) => void] {
-  const [key, setKeyState] = useState<string | null>(() => read(storageKey));
+  const [key, setKey] = useState<string | null>(() => read(storageKey));
 
-  const setKey = useCallback(
+  const store = useCallback(
     (next: string | null) => {
       write(storageKey, next);
-      setKeyState(next);
+      setKey(next);
     },
     [storageKey]
   );
 
-  return [key, setKey];
+  return [key, store];
 }

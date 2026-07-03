@@ -395,13 +395,13 @@
 .chip-won {
   color: #86efac;
   border: 1px solid #14532d;
-  background: rgba(34, 197, 94, 0.12);
+  background: #102420;
 }
 
 .chip-lost {
   color: #fca5a5;
   border: 1px solid #7f1d1d;
-  background: rgba(239, 68, 68, 0.1);
+  background: #24131c;
 }
 
 .chip-void {
@@ -616,6 +616,7 @@
 }
 
 .slip-done {
+  display: block;
   text-align: center;
   padding: 1.2rem 0;
 }

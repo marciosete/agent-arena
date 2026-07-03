@@ -191,7 +191,7 @@ export function FlagsPanel({ pollMs = POLL_MS.flags }: Readonly<FlagsPanelProps>
       ) : (
         flags.map((flag) => {
           const enabled = overrides[flag.key] ?? flag.enabled;
-          const rowArmed = armed && armed.key === flag.key ? armed : null;
+          const rowArmed = armed?.key === flag.key ? armed : null;
           return (
             <FlagRow
               key={flag.key}

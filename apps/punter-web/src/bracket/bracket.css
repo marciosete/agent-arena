@@ -298,6 +298,8 @@
   position: absolute;
   transform: translate(-50%, -50%);
   width: 260px;
+  margin: 0;
+  color: var(--text);
   background: rgba(10, 11, 18, 0.94);
   border: 1px solid rgba(212, 175, 55, 0.28);
   border-radius: 14px;

@@ -184,7 +184,7 @@ function SlipForm({
 
   if (state.phase === 'placed') {
     return (
-      <div className="slip-done" role="status">
+      <output className="slip-done">
         <p className="slip-done-mark">✓</p>
         <p>
           Bet placed — {formatDonuts(state.bet.stake)} on {selection.selectionName} at{' '}
@@ -194,7 +194,7 @@ function SlipForm({
         <button type="button" className="btn-gold" onClick={onDone}>
           Done
         </button>
-      </div>
+      </output>
     );
   }
 
@@ -294,7 +294,14 @@ function ConflictPanel({
 }>) {
   return (
     <div className="slip-conflict" role="alert">
-      {newPrice !== null ? (
+      {newPrice === null ? (
+        <>
+          <p>The price moved and the market can’t be re-offered — pick it again from the board.</p>
+          <button type="button" className="btn-ghost" onClick={onCancel}>
+            Cancel
+          </button>
+        </>
+      ) : (
         <>
           <p>The price moved — it is now {formatPrice(newPrice)}.</p>
           <div className="slip-conflict-actions">
@@ -310,13 +317,6 @@ function ConflictPanel({
               Cancel
             </button>
           </div>
-        </>
-      ) : (
-        <>
-          <p>The price moved and the market can’t be re-offered — pick it again from the board.</p>
-          <button type="button" className="btn-ghost" onClick={onCancel}>
-            Cancel
-          </button>
         </>
       )}
     </div>

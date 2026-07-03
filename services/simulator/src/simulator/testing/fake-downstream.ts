@@ -36,7 +36,7 @@ export class FakeDownstream {
       await this.repriceGate;
     }
     if (this.failReprice) {
-      return Promise.reject(new Error('pricing down'));
+      throw new Error('pricing down');
     }
     const fixture = this.stateProvider().fixtures.find((f) => f.id === settlement.fixtureId);
     if (!fixture?.homeTeamId || !fixture.awayTeamId) {
@@ -47,7 +47,7 @@ export class FakeDownstream {
       outrightMarket(TEAMS.map((team) => team.id)),
     ];
     this.marketsReturned.push(markets);
-    return Promise.resolve(markets);
+    return markets;
   }
 
   settle(

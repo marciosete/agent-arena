@@ -37,27 +37,119 @@ export function prologueTeamById(id: string): PrologueTeam | undefined {
 
 /** Real results, 29 June – 2 July 2026. Level scores with a winner = penalties. */
 export const PROLOGUE_FIXTURES: Fixture[] = [
-  prologueFixture('R32-1', '2026-06-29T17:00:00Z', 'RSA', 'CAN', 0, 1, 'CAN', 'R16-1', 'home'),
-  prologueFixture('R32-2', '2026-06-30T17:00:00Z', 'NED', 'MAR', 1, 1, 'MAR', 'R16-1', 'away'),
-  prologueFixture('R32-3', '2026-06-30T21:00:00Z', 'GER', 'PAR', 1, 1, 'PAR', 'R16-2', 'home'),
-  prologueFixture('R32-4', '2026-07-01T17:00:00Z', 'FRA', 'SWE', 3, 0, 'FRA', 'R16-2', 'away'),
-  prologueFixture('R32-5', '2026-06-30T00:00:00Z', 'BRA', 'JPN', 2, 1, 'BRA', 'R16-3', 'home'),
-  prologueFixture('R32-6', '2026-07-01T21:00:00Z', 'CIV', 'NOR', 1, 2, 'NOR', 'R16-3', 'away'),
-  prologueFixture('R32-7', '2026-07-01T23:00:00Z', 'MEX', 'ECU', 2, 0, 'MEX', 'R16-4', 'home'),
-  prologueFixture('R32-8', '2026-07-02T00:00:00Z', 'ENG', 'COD', 2, 1, 'ENG', 'R16-4', 'away'),
+  prologueFixture({
+    id: 'R32-1',
+    kickoff: '2026-06-29T17:00:00Z',
+    homeTeamId: 'RSA',
+    awayTeamId: 'CAN',
+    homeScore: 0,
+    awayScore: 1,
+    winnerTeamId: 'CAN',
+    feedsInto: 'R16-1',
+    feedsIntoSlot: 'home',
+  }),
+  prologueFixture({
+    id: 'R32-2',
+    kickoff: '2026-06-30T17:00:00Z',
+    homeTeamId: 'NED',
+    awayTeamId: 'MAR',
+    homeScore: 1,
+    awayScore: 1,
+    winnerTeamId: 'MAR',
+    feedsInto: 'R16-1',
+    feedsIntoSlot: 'away',
+  }),
+  prologueFixture({
+    id: 'R32-3',
+    kickoff: '2026-06-30T21:00:00Z',
+    homeTeamId: 'GER',
+    awayTeamId: 'PAR',
+    homeScore: 1,
+    awayScore: 1,
+    winnerTeamId: 'PAR',
+    feedsInto: 'R16-2',
+    feedsIntoSlot: 'home',
+  }),
+  prologueFixture({
+    id: 'R32-4',
+    kickoff: '2026-07-01T17:00:00Z',
+    homeTeamId: 'FRA',
+    awayTeamId: 'SWE',
+    homeScore: 3,
+    awayScore: 0,
+    winnerTeamId: 'FRA',
+    feedsInto: 'R16-2',
+    feedsIntoSlot: 'away',
+  }),
+  prologueFixture({
+    id: 'R32-5',
+    kickoff: '2026-06-30T00:00:00Z',
+    homeTeamId: 'BRA',
+    awayTeamId: 'JPN',
+    homeScore: 2,
+    awayScore: 1,
+    winnerTeamId: 'BRA',
+    feedsInto: 'R16-3',
+    feedsIntoSlot: 'home',
+  }),
+  prologueFixture({
+    id: 'R32-6',
+    kickoff: '2026-07-01T21:00:00Z',
+    homeTeamId: 'CIV',
+    awayTeamId: 'NOR',
+    homeScore: 1,
+    awayScore: 2,
+    winnerTeamId: 'NOR',
+    feedsInto: 'R16-3',
+    feedsIntoSlot: 'away',
+  }),
+  prologueFixture({
+    id: 'R32-7',
+    kickoff: '2026-07-01T23:00:00Z',
+    homeTeamId: 'MEX',
+    awayTeamId: 'ECU',
+    homeScore: 2,
+    awayScore: 0,
+    winnerTeamId: 'MEX',
+    feedsInto: 'R16-4',
+    feedsIntoSlot: 'home',
+  }),
+  prologueFixture({
+    id: 'R32-8',
+    kickoff: '2026-07-02T00:00:00Z',
+    homeTeamId: 'ENG',
+    awayTeamId: 'COD',
+    homeScore: 2,
+    awayScore: 1,
+    winnerTeamId: 'ENG',
+    feedsInto: 'R16-4',
+    feedsIntoSlot: 'away',
+  }),
 ];
 
-function prologueFixture(
-  id: string,
-  kickoff: string,
-  homeTeamId: string,
-  awayTeamId: string,
-  homeScore: number,
-  awayScore: number,
-  winnerTeamId: string,
-  feedsInto: string,
-  feedsIntoSlot: 'home' | 'away'
-): Fixture {
+interface PrologueFixtureSpec {
+  id: string;
+  kickoff: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeScore: number;
+  awayScore: number;
+  winnerTeamId: string;
+  feedsInto: string;
+  feedsIntoSlot: 'home' | 'away';
+}
+
+function prologueFixture({
+  id,
+  kickoff,
+  homeTeamId,
+  awayTeamId,
+  homeScore,
+  awayScore,
+  winnerTeamId,
+  feedsInto,
+  feedsIntoSlot,
+}: PrologueFixtureSpec): Fixture {
   return {
     id,
     round: 'R32',

@@ -96,7 +96,7 @@ export class PricingService implements OnModuleInit {
 
   async getMarketByFixtureId(fixtureId: string): Promise<Market> {
     const market = await this.repository.findMarketById(fixtureId);
-    if (market === null || market.type !== 'MATCH_WINNER') {
+    if (market?.type !== 'MATCH_WINNER') {
       throw new NotFoundException(`No market for fixture ${fixtureId}`);
     }
     return toContractMarket(market);
@@ -190,7 +190,7 @@ export class PricingService implements OnModuleInit {
 
   private buildFixtureMarket(fixtureId: string, state: BracketState): PricedMarket {
     const slots = state.get(fixtureId);
-    if (!slots || slots.homeTeamId === null || slots.awayTeamId === null) {
+    if (slots?.homeTeamId == null || slots.awayTeamId === null) {
       throw new Error(`Fixture ${fixtureId} is not priceable`);
     }
     return buildMatchWinnerMarket(

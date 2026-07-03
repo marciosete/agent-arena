@@ -90,12 +90,7 @@ export function applySettlement(
 export function priceableFixtureIds(state: BracketState): string[] {
   return FIXTURES.filter((fixture) => {
     const slots = state.get(fixture.id);
-    return (
-      slots !== undefined &&
-      slots.homeTeamId !== null &&
-      slots.awayTeamId !== null &&
-      slots.winnerTeamId === null
-    );
+    return slots?.homeTeamId != null && slots.awayTeamId !== null && slots.winnerTeamId === null;
   }).map((fixture) => fixture.id);
 }
 
