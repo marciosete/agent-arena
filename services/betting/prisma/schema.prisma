@@ -43,3 +43,50 @@ model Otp {
 
   @@index([email])
 }
+
+// Mirrors the contract's BetStatusSchema.
+enum BetStatus {
+  pending
+  won
+  lost
+  void
+}
+
+// A punter's bet. Odds are locked at placement (price/potentialReturn) and the
+// account always comes from the session token, never the request body.
+// idempotencyKey is UNIQUE so the database — not an if-statement — makes bet
+// placement idempotent: a replayed request can never create a second row or a
+// second debit. marketName is pricing-owned display data captured at placement
+// so the exposure board renders without a pricing round-trip.
+model Bet {
+  id              String    @id @default(uuid())
+  accountId       String
+  marketId        String
+  marketName      String
+  selectionId     String
+  stake           Float
+  price           Float
+  potentialReturn Float
+  status          BetStatus @default(pending)
+  placedAt        DateTime  @default(now())
+  settledAt       DateTime?
+  idempotencyKey  String    @unique
+
+  @@index([accountId, placedAt])
+  @@index([marketId, status])
+}
+
+// Append-only audit trail of every wallet movement (stake debit, win credit):
+// no updates, no deletes. balanceAfter snapshots the wallet so the trail
+// reconciles to the cent without replaying history.
+model LedgerEntry {
+  id           String   @id @default(uuid())
+  accountId    String
+  delta        Float
+  balanceAfter Float
+  reason       String
+  refBetId     String?
+  createdAt    DateTime @default(now())
+
+  @@index([accountId, createdAt])
+}

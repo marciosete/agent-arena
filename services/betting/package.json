@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
+    "reconcile": "node scripts/reconcile.cjs",
     "prisma:generate": "prisma generate"
   },
   "dependencies": {
