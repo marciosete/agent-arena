@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { buildMatchWinnerMarket } from '../../domain/market-builder';
+import { requireTeam } from '../../domain/teams';
 import { makeSettlement } from '../../testing/settlement';
 import { InMemoryMarketsRepository } from './in-memory-markets.repository';
 
@@ -52,5 +54,26 @@ describe('InMemoryMarketsRepository ↔ Prisma parity', () => {
       event: makeSettlement(R32_9, 'POR'),
     });
     expect((await repository.getBracketState()).has('NOPE')).toBe(false);
+  });
+
+  it('clearAll wipes every fixture, market, and event (deleteMany-everything parity)', async () => {
+    const repository = await seeded();
+    await repository.upsertMarkets([
+      buildMatchWinnerMarket(R32_9, requireTeam('POR'), requireTeam('CRO')),
+    ]);
+    await repository.applyReprice({
+      fixtureStates: [{ id: R32_9, set: { winnerTeamId: 'POR' } }],
+      upsertMarkets: [],
+      settleMarketIds: [R32_9],
+      event: makeSettlement(R32_9, 'POR'),
+    });
+    expect(await repository.findAllMarkets()).toHaveLength(1);
+    expect(repository.events).toHaveLength(1);
+
+    await repository.clearAll();
+
+    expect(await repository.findAllMarkets()).toHaveLength(0);
+    expect((await repository.getBracketState()).size).toBe(0);
+    expect(repository.events).toHaveLength(0);
   });
 });

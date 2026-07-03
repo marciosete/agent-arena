@@ -13,14 +13,17 @@ import { InMemoryMarketsRepository } from './testing/in-memory-markets.repositor
 const MARKETS_PATH = '/markets';
 const OUTRIGHT_PATH = '/outright';
 const REPRICE_PATH = '/reprice';
+const RESET_PATH = '/reset';
 const R16_2_PATH = '/markets/R16-2';
 const AUTH_HEADER = 'Authorization';
+const R32_13 = 'R32-13';
 
 const PROTECTED_ENDPOINTS = [
   { method: 'get', path: MARKETS_PATH },
   { method: 'get', path: R16_2_PATH },
   { method: 'get', path: OUTRIGHT_PATH },
   { method: 'post', path: REPRICE_PATH },
+  { method: 'post', path: RESET_PATH },
 ] as const;
 
 async function createApp(): Promise<INestApplication> {
@@ -176,5 +179,44 @@ describe('POST /reprice', () => {
       .set(AUTH_HEADER, bearer())
       .send({ settlement: makeSettlement('R32-13', 'CPV') });
     expect(response.status).toBe(409);
+  });
+});
+
+describe('POST /reset (admin-guarded)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    app = await createApp();
+  });
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('403s a valid but non-admin token (identity-based AdminGuard)', async () => {
+    const response = await request(app.getHttpServer())
+      .post(RESET_PATH)
+      .set(AUTH_HEADER, `Bearer ${signToken('x')}`);
+    expect(response.status).toBe(403);
+  });
+
+  it('clears and reseeds fresh OPEN markets for an admin token', async () => {
+    // Mutate state first: settle R32-13 so the reseed has something to undo.
+    await request(app.getHttpServer())
+      .post(REPRICE_PATH)
+      .set(AUTH_HEADER, bearer())
+      .send({ settlement: makeSettlement(R32_13, 'ARG') })
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .post(RESET_PATH)
+      .set(AUTH_HEADER, `Bearer ${signToken('x', { admin: true })}`)
+      .expect(200);
+
+    const markets = MarketSchema.array().parse(response.body);
+    expect(markets).toHaveLength(11);
+    for (const market of markets) {
+      expect(market.status).toBe('open');
+    }
+    expect(markets.find((market) => market.id === R32_13)?.status).toBe('open');
   });
 });

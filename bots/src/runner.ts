@@ -97,9 +97,9 @@ export async function runRoster(options: RunnerOptions): Promise<void> {
   log(
     `🤖 Agent Arena roster warming up: ${seats.length} bots, a round every ${config.roundIntervalMs / 1000}s. Ctrl-C to stop.`
   );
-  if (config.adminKey === '') {
+  if (config.sessionSecret === '') {
     log(
-      '⚠️  BETTING_ADMIN_KEY is not set — betting will refuse to provision bots (401/403). Set it in the environment before expecting any bets.'
+      '⚠️  SESSION_SECRET is not set — the admin service token bots mint to provision (POST /accounts) will be signed with the dev default and betting will refuse it (401/403). Set it in the environment before expecting any bets.'
     );
   }
 

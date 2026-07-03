@@ -1,12 +1,13 @@
 import { Test } from '@nestjs/testing';
 import { UnauthorizedException, type INestApplication } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthResponseSchema } from '@arena/contracts';
+import { JwtAuthGuard, signToken } from '@arena/service-auth';
 import request from 'supertest';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
-const ADMIN_KEY = 'betting-secret';
 const AUTH_RESPONSE = {
   token: 'a-signed-token',
   account: {
@@ -19,7 +20,7 @@ const AUTH_RESPONSE = {
   },
 };
 
-describe('AuthController (e2e)', () => {
+describe('AuthController (e2e, real JwtAuthGuard + AdminGuard)', () => {
   let app: INestApplication;
   const auth = {
     requestOtp: vi.fn().mockResolvedValue(undefined),
@@ -33,7 +34,10 @@ describe('AuthController (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: auth }],
+      providers: [
+        { provide: AuthService, useValue: auth },
+        { provide: APP_GUARD, useClass: JwtAuthGuard },
+      ],
     }).compile();
     app = moduleRef.createNestApplication();
     await app.init();
@@ -49,11 +53,12 @@ describe('AuthController (e2e)', () => {
     auth.verify.mockResolvedValue(AUTH_RESPONSE);
   });
 
-  afterEach(() => {
-    delete process.env.BETTING_ADMIN_KEY;
-  });
+  // An allowlisted operator (or admin service token) provisions bots.
+  const adminBearer = () => `Bearer ${signToken('operator', { admin: true })}`;
+  // An ordinary punter token — valid session, but no admin authority.
+  const punterBearer = () => `Bearer ${signToken('punter')}`;
 
-  describe('POST /auth/request-otp', () => {
+  describe('POST /auth/request-otp (public)', () => {
     it('returns { ok: true } and delegates to the service', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/request-otp')
@@ -85,7 +90,7 @@ describe('AuthController (e2e)', () => {
     });
   });
 
-  describe('POST /auth/verify', () => {
+  describe('POST /auth/verify (public)', () => {
     it('returns a contract-valid AuthResponse on success', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/verify')
@@ -128,38 +133,35 @@ describe('AuthController (e2e)', () => {
     });
   });
 
-  describe('POST /accounts', () => {
-    it('provisions a bot when no admin key is configured (local dev)', async () => {
-      delete process.env.BETTING_ADMIN_KEY;
+  describe('POST /accounts (admin only)', () => {
+    it('provisions a bot for an admin bearer token', async () => {
       const response = await request(app.getHttpServer())
         .post('/accounts')
+        .set('authorization', adminBearer())
         .send({ name: 'GriddyBot', isBot: true })
         .expect(201);
       expect(AuthResponseSchema.parse(response.body).account.isBot).toBe(true);
       expect(auth.provisionBot).toHaveBeenCalledWith('GriddyBot');
     });
 
-    it('rejects when the admin key is set but absent from the request (401)', async () => {
-      process.env.BETTING_ADMIN_KEY = ADMIN_KEY;
+    it('returns 401 without a Bearer token', async () => {
       await request(app.getHttpServer()).post('/accounts').send({ name: 'GriddyBot' }).expect(401);
       expect(auth.provisionBot).not.toHaveBeenCalled();
     });
 
-    it('provisions when the correct admin key is supplied', async () => {
-      process.env.BETTING_ADMIN_KEY = ADMIN_KEY;
+    it('returns 403 for a valid NON-admin token', async () => {
       await request(app.getHttpServer())
         .post('/accounts')
-        .set('x-admin-key', ADMIN_KEY)
+        .set('authorization', punterBearer())
         .send({ name: 'GriddyBot' })
-        .expect(201);
-      expect(auth.provisionBot).toHaveBeenCalledWith('GriddyBot');
+        .expect(403);
+      expect(auth.provisionBot).not.toHaveBeenCalled();
     });
 
-    it('rejects a bad body with 400 after passing the guard', async () => {
-      process.env.BETTING_ADMIN_KEY = ADMIN_KEY;
+    it('rejects a bad body with 400 after passing the admin guard', async () => {
       await request(app.getHttpServer())
         .post('/accounts')
-        .set('x-admin-key', ADMIN_KEY)
+        .set('authorization', adminBearer())
         .send({ name: '' })
         .expect(400);
       expect(auth.provisionBot).not.toHaveBeenCalled();

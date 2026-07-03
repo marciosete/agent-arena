@@ -1,5 +1,6 @@
 import type { Bet, Market } from '@arena/contracts';
-import { describe, expect, it } from 'vitest';
+import { verifyTokenClaims } from '@arena/service-auth';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { defaultUuid, provisionBot, runRound, type BotDeps, type Personality } from '../bot';
 import { ArenaClient, type BotClient, type FetchLike } from '../http';
 import { steadyStrategy, type Strategy } from '../strategies';
@@ -11,6 +12,12 @@ import {
   jsonResponse,
   marketFixture,
 } from './fixtures';
+
+// The real ArenaClient mints its admin service token off SESSION_SECRET; set it
+// (and let verifyTokenClaims read the same value) before any token is signed.
+beforeAll(() => {
+  process.env.SESSION_SECRET = 'test-session-secret';
+});
 
 function personality(overrides: Partial<Personality> = {}): Personality {
   return {
@@ -39,7 +46,7 @@ function stubClient(overrides: Partial<BotClient> = {}): BotClient {
 }
 
 describe('bot provisioning and betting flow (mocked fetch)', () => {
-  it('provisions itself with the admin key and places an accepted bet — Bearer token reused, idempotencyKey sent, no accountId', async () => {
+  it('provisions itself with an admin service token and places an accepted bet — account Bearer token reused, idempotencyKey sent, no accountId', async () => {
     const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
     const fetchImpl: FetchLike = (url, init) => {
       calls.push({ url, init });
@@ -67,7 +74,6 @@ describe('bot provisioning and betting flow (mocked fetch)', () => {
       {
         pricingUrl: 'http://pricing.test',
         bettingUrl: 'http://betting.test',
-        adminKey: 'the-admin-key',
       },
       fetchImpl
     );
@@ -83,17 +89,24 @@ describe('bot provisioning and betting flow (mocked fetch)', () => {
     expect(outcome.balance).toBe(9_500);
     expect(outcome.sessionExpired).toBe(false);
 
-    // 1. Provisioning is admin-keyed — the bot's first and only auth step.
+    // 1. Provisioning is identity-gated — a signed admin service token (sub
+    // 'bots', admin: true), the bot's first and only auth step. No shared key.
     const provisionCall = calls[0];
     expect(provisionCall.url).toBe('http://betting.test/accounts');
     const provisionHeaders = provisionCall.init?.headers as Record<string, string>;
-    expect(provisionHeaders['x-admin-key']).toBe('the-admin-key');
+    expect(provisionHeaders).not.toHaveProperty('x-admin-key');
+    expect(provisionHeaders.authorization).toMatch(/^Bearer /);
+    expect(verifyTokenClaims(provisionHeaders.authorization.slice('Bearer '.length))).toEqual({
+      sub: 'bots',
+      admin: true,
+    });
     expect(JSON.parse(String(provisionCall.init?.body))).toEqual({
       name: 'Steady',
       isBot: true,
     });
 
-    // 2. The returned token is reused as the Bearer on every subsequent call.
+    // 2. The returned ACCOUNT token — not the admin token — is reused as the
+    // Bearer on every subsequent call.
     for (const call of calls.slice(1)) {
       const headers = call.init?.headers as Record<string, string>;
       expect(headers.authorization).toBe('Bearer bot-session-token');

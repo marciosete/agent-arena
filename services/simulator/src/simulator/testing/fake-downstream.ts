@@ -1,6 +1,7 @@
 import {
   TEAMS,
   type Market,
+  type ResetResponse,
   type SettleResponse,
   type SettlementEvent,
   type SimState,
@@ -9,6 +10,7 @@ import type { WinningSelection } from '../winning-selections';
 import { matchWinnerMarket, outrightMarket } from './markets';
 
 export const SETTLE_OK: SettleResponse = { settledBets: 1, totalPaidOut: 100 };
+export const RESET_OK: ResetResponse = { betsVoided: 2, botsRemoved: 3, walletsReset: 4 };
 
 /**
  * A contract-faithful pricing+betting double: /reprice answers with a
@@ -22,8 +24,12 @@ export class FakeDownstream {
   repriceCalls: SettlementEvent[] = [];
   settleCalls: { settlement: SettlementEvent; winningSelections: WinningSelection[] }[] = [];
   marketsReturned: Market[][] = [];
+  resetPricingCalls = 0;
+  resetBettingCalls = 0;
   failReprice = false;
   failSettle = false;
+  failResetPricing = false;
+  failResetBetting = false;
   /** when set, reprice stalls on it — lets tests interleave resets mid-flight */
   repriceGate: Promise<void> | null = null;
 
@@ -57,5 +63,21 @@ export class FakeDownstream {
     this.callOrder.push('settle');
     this.settleCalls.push({ settlement, winningSelections });
     return this.failSettle ? Promise.reject(new Error('betting down')) : Promise.resolve(SETTLE_OK);
+  }
+
+  resetPricing(): Promise<Market[]> {
+    this.callOrder.push('resetPricing');
+    this.resetPricingCalls += 1;
+    return this.failResetPricing
+      ? Promise.reject(new Error('pricing reset down'))
+      : Promise.resolve([]);
+  }
+
+  resetBetting(): Promise<ResetResponse> {
+    this.callOrder.push('resetBetting');
+    this.resetBettingCalls += 1;
+    return this.failResetBetting
+      ? Promise.reject(new Error('betting reset down'))
+      : Promise.resolve(RESET_OK);
   }
 }

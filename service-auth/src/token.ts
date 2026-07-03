@@ -19,12 +19,27 @@ const TOKEN_TTL_SECONDS = 12 * 60 * 60; // 12 hours
 const JWT_HEADER = { alg: 'HS256', typ: 'JWT' } as const;
 
 interface TokenPayload {
-  /** subject: the account id */
+  /** subject: the account id (humans) or a service name (service tokens) */
   sub: string;
   /** issued-at, seconds since epoch */
   iat: number;
   /** expiry, seconds since epoch */
   exp: number;
+  /**
+   * Admin authority, baked in at signing time. True for allowlisted operator
+   * logins (betting stamps it from ADMIN_EMAILS) and for backend service tokens.
+   * Only the holder of SESSION_SECRET can mint a token, so `admin` is unforgeable.
+   * Omitted (falsy) for ordinary punters.
+   */
+  admin?: boolean;
+}
+
+/** What a verified token asserts about its bearer. */
+export interface TokenClaims {
+  /** account id (humans) or service name (service tokens) */
+  sub: string;
+  /** true when the bearer may perform admin actions (reset, settle, flags) */
+  admin: boolean;
 }
 
 function nowSeconds(): number {
@@ -48,23 +63,28 @@ function sign(signingInput: string): string {
   return createHmac('sha256', sessionSecret()).update(signingInput).digest('base64url');
 }
 
-export function signToken(accountId: string): string {
+/**
+ * Sign a session token. Pass `{ admin: true }` for allowlisted operators (set by
+ * betting at login) and for backend service tokens; omit it for ordinary punters.
+ */
+export function signToken(sub: string, opts: { admin?: boolean } = {}): string {
   const issuedAt = nowSeconds();
   const payload: TokenPayload = {
-    sub: accountId,
+    sub,
     iat: issuedAt,
     exp: issuedAt + TOKEN_TTL_SECONDS,
+    ...(opts.admin ? { admin: true } : {}),
   };
   const signingInput = `${encodeSegment(JWT_HEADER)}.${encodeSegment(payload)}`;
   return `${signingInput}.${sign(signingInput)}`;
 }
 
 /**
- * Returns the `sub` (account id) when the signature is valid AND the token is
- * unexpired, otherwise null. Never throws — malformed input is just an invalid
- * token.
+ * Returns the token's {@link TokenClaims} when the signature is valid AND the
+ * token is unexpired, otherwise null. Never throws — malformed input is just an
+ * invalid token.
  */
-export function verifyToken(token: string): string | null {
+export function verifyTokenClaims(token: string): TokenClaims | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) {
@@ -98,8 +118,33 @@ export function verifyToken(token: string): string | null {
     if (nowSeconds() >= payload.exp) {
       return null;
     }
-    return payload.sub;
+    return { sub: payload.sub, admin: payload.admin === true };
   } catch {
     return null;
   }
+}
+
+/**
+ * Returns the `sub` (account id / service name) when the token is valid, else
+ * null. Convenience wrapper over {@link verifyTokenClaims} for callers that only
+ * need identity.
+ */
+export function verifyToken(token: string): string | null {
+  return verifyTokenClaims(token)?.sub ?? null;
+}
+
+/**
+ * Is `email` on the ADMIN_EMAILS allowlist (comma-separated, case-insensitive)?
+ * Betting calls this at login to decide whether to stamp `admin: true` into the
+ * session token. No allowlist configured ⇒ nobody is an admin.
+ */
+export function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) {
+    return false;
+  }
+  const allowlist = (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => entry.length > 0);
+  return allowlist.includes(email.toLowerCase());
 }

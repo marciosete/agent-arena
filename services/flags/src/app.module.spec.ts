@@ -11,7 +11,8 @@ const NOW = new Date('2026-07-02T10:00:00Z');
 
 describe('AppModule (e2e, prisma mocked)', () => {
   let app: INestApplication;
-  let auth: string;
+  let auth: string; // ordinary punter — a valid session, but no admin claim
+  let adminAuth: string; // allowlisted operator / service token (admin claim set)
   const prisma = {
     featureFlag: {
       upsert: vi.fn().mockResolvedValue({}),
@@ -31,12 +32,12 @@ describe('AppModule (e2e, prisma mocked)', () => {
       .compile();
     app = moduleRef.createNestApplication();
     await app.init();
-    // ConfigModule loads services/flags/.env into process.env; normalise both the admin key
-    // (the unguarded write tests assume none) and the JWT secret so the token we sign below is
-    // verified with the same (dev) secret the global guard uses.
-    delete process.env.FLAGS_ADMIN_KEY;
+    // ConfigModule loads services/flags/.env into process.env; normalise the JWT
+    // secret so the tokens we sign below are verified with the same (dev) secret
+    // the global guard uses. Admin authority is now the token's `admin` claim.
     delete process.env.SESSION_SECRET;
     auth = `Bearer ${signToken('test-account')}`;
+    adminAuth = `Bearer ${signToken('ops-account', { admin: true })}`;
   });
 
   afterAll(async () => {
@@ -53,7 +54,7 @@ describe('AppModule (e2e, prisma mocked)', () => {
     expect(response.status).toBe(401);
   });
 
-  it('lists flags (with a token)', async () => {
+  it('lists flags for any logged-in user (plain Bearer read, no admin claim needed)', async () => {
     prisma.featureFlag.findMany.mockResolvedValue([
       { key: 'punter-markets', enabled: false, description: 'markets', updatedAt: NOW },
     ]);
@@ -65,24 +66,39 @@ describe('AppModule (e2e, prisma mocked)', () => {
     expect(flags[0].key).toBe('punter-markets');
   });
 
-  it('rejects an invalid flag update body with 400', async () => {
+  it('rejects a flag update with no token (401)', async () => {
+    const response = await request(app.getHttpServer())
+      .put('/flags/punter-markets')
+      .send({ enabled: true });
+    expect(response.status).toBe(401);
+  });
+
+  it('rejects a flag update from a non-admin token (403)', async () => {
     const response = await request(app.getHttpServer())
       .put('/flags/punter-markets')
       .set('Authorization', auth)
+      .send({ enabled: true });
+    expect(response.status).toBe(403);
+  });
+
+  it('rejects an invalid flag update body with 400 (admin token)', async () => {
+    const response = await request(app.getHttpServer())
+      .put('/flags/punter-markets')
+      .set('Authorization', adminAuth)
       .send({ enabled: 'yes' });
     expect(response.status).toBe(400);
   });
 
-  it('returns 404 for unknown flags', async () => {
+  it('returns 404 for unknown flags (admin token)', async () => {
     prisma.featureFlag.findUnique.mockResolvedValue(null);
     const response = await request(app.getHttpServer())
       .put('/flags/nope')
-      .set('Authorization', auth)
+      .set('Authorization', adminAuth)
       .send({ enabled: true });
     expect(response.status).toBe(404);
   });
 
-  it('flips a known flag', async () => {
+  it('flips a known flag for an admin token', async () => {
     prisma.featureFlag.findUnique.mockResolvedValue({ key: 'punter-markets' });
     prisma.featureFlag.update.mockResolvedValue({
       key: 'punter-markets',
@@ -92,48 +108,9 @@ describe('AppModule (e2e, prisma mocked)', () => {
     });
     const response = await request(app.getHttpServer())
       .put('/flags/punter-markets')
-      .set('Authorization', auth)
+      .set('Authorization', adminAuth)
       .send({ enabled: true })
       .expect(200);
     expect(FeatureFlagSchema.parse(response.body).enabled).toBe(true);
-  });
-
-  describe('with FLAGS_ADMIN_KEY configured', () => {
-    beforeAll(() => {
-      process.env.FLAGS_ADMIN_KEY = 'test-admin-key';
-    });
-
-    afterAll(() => {
-      delete process.env.FLAGS_ADMIN_KEY;
-    });
-
-    it('allows reads with a valid token', async () => {
-      const response = await request(app.getHttpServer()).get('/flags').set('Authorization', auth);
-      expect(response.status).toBe(200);
-    });
-
-    it('rejects writes without the admin key (even with a valid token)', async () => {
-      const response = await request(app.getHttpServer())
-        .put('/flags/punter-markets')
-        .set('Authorization', auth)
-        .send({ enabled: true });
-      expect(response.status).toBe(401);
-    });
-
-    it('accepts writes with a token + the admin key', async () => {
-      prisma.featureFlag.findUnique.mockResolvedValue({ key: 'punter-markets' });
-      prisma.featureFlag.update.mockResolvedValue({
-        key: 'punter-markets',
-        enabled: false,
-        description: 'markets',
-        updatedAt: NOW,
-      });
-      const response = await request(app.getHttpServer())
-        .put('/flags/punter-markets')
-        .set('Authorization', auth)
-        .set('x-admin-key', 'test-admin-key')
-        .send({ enabled: false });
-      expect(response.status).toBe(200);
-    });
   });
 });

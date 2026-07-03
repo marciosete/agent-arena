@@ -18,9 +18,3 @@ export const POLL_MS = {
   state: 3_000,
   flags: 5_000,
 } as const;
-
-/** Admin keys are prompted for once and kept here — never baked into the bundle. */
-export const STORAGE_KEYS = {
-  flagsAdminKey: 'trader.flags-admin-key',
-  simAdminKey: 'trader.sim-admin-key',
-} as const;

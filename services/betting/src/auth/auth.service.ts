@@ -1,6 +1,6 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { AccountSchema, OPENING_BALANCE, type Account, type AuthResponse } from '@arena/contracts';
-import { signToken } from '@arena/service-auth';
+import { isAdminEmail, signToken } from '@arena/service-auth';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from './email.service';
 import { codesMatch, generateCode, hashCode } from './otp';
@@ -81,10 +81,15 @@ export class AuthService {
     });
 
     const account = await this.findOrCreateByEmail(email, name);
-    return this.toAuthResponse(account);
+    // Stamp admin authority from the ADMIN_EMAILS allowlist at login: the claim
+    // is baked into the token and read later by the shared AdminGuard.
+    return this.toAuthResponse(account, isAdminEmail(account.email));
   }
 
-  /** Admin-only: create a bot wallet (no inbox, so it can't use email OTP). */
+  /**
+   * Admin-only: create a bot wallet (no inbox, so it can't use email OTP). Bots
+   * bet as ordinary users, so their token is deliberately NON-admin.
+   */
   async provisionBot(name: string): Promise<AuthResponse> {
     const account = await this.prisma.account.create({
       data: { name, email: null, isBot: true, balance: OPENING_BALANCE },
@@ -112,7 +117,7 @@ export class AuthService {
     });
   }
 
-  private toAuthResponse(account: AccountRecord): AuthResponse {
+  private toAuthResponse(account: AccountRecord, admin = false): AuthResponse {
     const mapped: Account = AccountSchema.parse({
       id: account.id,
       email: account.email,
@@ -121,6 +126,6 @@ export class AuthService {
       isBot: account.isBot,
       createdAt: account.createdAt.toISOString(),
     });
-    return { token: signToken(mapped.id), account: mapped };
+    return { token: signToken(mapped.id, { admin }), account: mapped };
   }
 }

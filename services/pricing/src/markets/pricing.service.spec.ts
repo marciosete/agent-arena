@@ -1,6 +1,6 @@
 import { FIXTURES, MarketSchema, type Market } from '@arena/contracts';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initialBracketState } from '../domain/bracket';
 import { buildMatchWinnerMarket, OUTRIGHT_MARKET_ID } from '../domain/market-builder';
 import { requireTeam } from '../domain/teams';
@@ -216,6 +216,35 @@ describe('reprice', () => {
     // Fixtures already decided in the seed take the idempotent path: no event.
     const preSettled = FIXTURES.filter((fixture) => fixture.winnerTeamId !== null).length;
     expect(repository.events).toHaveLength(FIXTURES.length - preSettled);
+  });
+});
+
+describe('reset', () => {
+  it('clears every persisted row then reseeds fresh OPEN markets', async () => {
+    const { service, repository } = await createSeeded();
+    // Mutate away from a fresh seed: settle a market and record an event.
+    await service.reprice(makeSettlement(R32_13, ARG));
+    expect(repository.events).toHaveLength(1);
+    expect((await service.getMarketByFixtureId(R32_13)).status).toBe(SETTLED);
+
+    const clearSpy = vi.spyOn(repository, 'clearAll');
+    const seedSpy = vi.spyOn(service, 'seedMarkets');
+    const markets = await service.reset();
+
+    // Cleared first, then reseeded.
+    expect(clearSpy).toHaveBeenCalledOnce();
+    expect(seedSpy).toHaveBeenCalledOnce();
+    expect(clearSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      seedSpy.mock.invocationCallOrder[0] ?? 0
+    );
+
+    MarketSchema.array().parse(markets);
+    expect(markets).toHaveLength(11);
+    for (const market of markets) {
+      expect(market.status).toBe(OPEN);
+    }
+    // The recorded reprice event is gone — this is a fresh reseed, not a merge.
+    expect(repository.events).toHaveLength(0);
   });
 });
 

@@ -56,12 +56,37 @@ describe('SimulatorService', () => {
     expect(state.remainingFixtureIds).toHaveLength(SEED_UNPLAYED_COUNT);
   });
 
-  it('returns to the initial state on reset', async () => {
-    const { service } = makeService();
-    await service.playNext();
-    const state = SimStateSchema.parse(service.reset());
-    expect(state.playedFixtureIds).toEqual(SEED_PLAYED);
-    expect(state.remainingFixtureIds).toHaveLength(SEED_UNPLAYED_COUNT);
+  describe('reset — the reset-bracket cascade', () => {
+    it('returns to the seed bracket AND cascades to pricing + betting resets', async () => {
+      const { service, downstream } = makeService();
+      await service.playNext();
+
+      const state = SimStateSchema.parse(await service.reset());
+
+      expect(state.playedFixtureIds).toEqual(SEED_PLAYED);
+      expect(state.remainingFixtureIds).toHaveLength(SEED_UNPLAYED_COUNT);
+      expect(downstream.resetPricingCalls).toBe(1);
+      expect(downstream.resetBettingCalls).toBe(1);
+      expect(downstream.callOrder).toContain('resetPricing');
+      expect(downstream.callOrder).toContain('resetBetting');
+    });
+
+    it('still returns the fresh bracket when a downstream reset throws (degraded, never 500s)', async () => {
+      const { service, downstream } = makeService();
+      downstream.failResetPricing = true;
+      downstream.failResetBetting = true;
+      const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+      const state = SimStateSchema.parse(await service.reset());
+
+      expect(state.playedFixtureIds).toEqual(SEED_PLAYED);
+      expect(state.remainingFixtureIds).toHaveLength(SEED_UNPLAYED_COUNT);
+      // Both downstream resets were still attempted even though pricing failed first.
+      expect(downstream.resetPricingCalls).toBe(1);
+      expect(downstream.resetBettingCalls).toBe(1);
+      expect(warn).toHaveBeenCalledTimes(2);
+      warn.mockRestore();
+    });
   });
 
   describe('playNext — the finale chain', () => {

@@ -9,8 +9,12 @@ export interface BotsConfig {
   pricingUrl: string;
   /** betting service base URL — accounts + bets */
   bettingUrl: string;
-  /** BETTING_ADMIN_KEY — unlocks bot provisioning (POST /accounts) */
-  adminKey: string;
+  /**
+   * SESSION_SECRET — the shared HS256 signing key (@arena/service-auth). Bots
+   * use it to mint an admin service token whose `admin` claim unlocks bot
+   * provisioning (POST /accounts). Same value the services are keyed on.
+   */
+  sessionSecret: string;
   /** pause between betting rounds */
   roundIntervalMs: number;
 }
@@ -22,7 +26,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BotsConfig {
   return {
     pricingUrl: env.PRICING_URL ?? BASE_URLS.pricing,
     bettingUrl: env.BETTING_URL ?? BASE_URLS.betting,
-    adminKey: env.BETTING_ADMIN_KEY ?? '',
+    sessionSecret: env.SESSION_SECRET ?? '',
     roundIntervalMs:
       Number.isFinite(interval) && interval > 0 ? interval : DEFAULT_ROUND_INTERVAL_MS,
   };

@@ -41,6 +41,8 @@ export abstract class MarketsRepository {
   abstract upsertMarkets(markets: PricedMarket[]): Promise<void>;
   abstract settleMarkets(ids: string[]): Promise<void>;
   abstract applyReprice(update: RepriceUpdate): Promise<void>;
+  /** Wipe every persisted row (admin reset) — the reseed rebuilds from scratch. */
+  abstract clearAll(): Promise<void>;
 }
 
 interface SelectionRow {
@@ -128,6 +130,20 @@ export class PrismaMarketsRepository extends MarketsRepository {
       where: { id: { in: ids } },
       data: { status: 'settled' },
     });
+  }
+
+  /**
+   * Delete every row, atomically. Selection is removed before Market to honour
+   * the FK; RepriceEvent and FixtureState stand alone. The caller reseeds fresh
+   * OPEN markets from the current contract FIXTURES immediately after.
+   */
+  async clearAll(): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.selection.deleteMany(),
+      this.prisma.market.deleteMany(),
+      this.prisma.repriceEvent.deleteMany(),
+      this.prisma.fixtureState.deleteMany(),
+    ]);
   }
 
   async applyReprice(update: RepriceUpdate): Promise<void> {

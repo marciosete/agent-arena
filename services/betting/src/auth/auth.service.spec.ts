@@ -1,7 +1,7 @@
 import { UnauthorizedException, Logger } from '@nestjs/common';
 import { OPENING_BALANCE } from '@arena/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { verifyToken } from '@arena/service-auth';
+import { verifyToken, verifyTokenClaims } from '@arena/service-auth';
 import { AuthService } from './auth.service';
 import { EmailService } from './email.service';
 import { hashCode } from './otp';
@@ -70,6 +70,7 @@ describe('AuthService', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    delete process.env.ADMIN_EMAILS;
   });
 
   describe('requestOtp', () => {
@@ -114,6 +115,28 @@ describe('AuthService', () => {
       expect(result.account.id).toBe(ACCOUNT_ID);
       expect(result.account.balance).toBe(OPENING_BALANCE);
       expect(verifyToken(result.token)).toBe(ACCOUNT_ID);
+    });
+
+    it('stamps an ADMIN session token for an allowlisted operator email', async () => {
+      process.env.ADMIN_EMAILS = `someone-else@x.test, ${EMAIL}`;
+      prisma.otp.findFirst.mockResolvedValue(liveOtp());
+      prisma.otp.update.mockResolvedValue(liveOtp({ consumedAt: new Date() }));
+      prisma.account.findUnique.mockResolvedValue(accountRecord());
+
+      const result = await service.verify(EMAIL, CODE);
+
+      expect(verifyTokenClaims(result.token)).toEqual({ sub: ACCOUNT_ID, admin: true });
+    });
+
+    it('mints a NON-admin token for an ordinary punter (email not on the allowlist)', async () => {
+      process.env.ADMIN_EMAILS = 'only-the-operator@x.test';
+      prisma.otp.findFirst.mockResolvedValue(liveOtp());
+      prisma.otp.update.mockResolvedValue(liveOtp({ consumedAt: new Date() }));
+      prisma.account.findUnique.mockResolvedValue(accountRecord());
+
+      const result = await service.verify(EMAIL, CODE);
+
+      expect(verifyTokenClaims(result.token)).toEqual({ sub: ACCOUNT_ID, admin: false });
     });
 
     it('creates a new account from the email local-part when none exists (no nickname)', async () => {
@@ -237,6 +260,17 @@ describe('AuthService', () => {
       expect(result.account.isBot).toBe(true);
       expect(result.account.email).toBeNull();
       expect(verifyToken(result.token)).toBe(ACCOUNT_ID);
+    });
+
+    it('mints a NON-admin token even if the allowlist is set — bots bet as ordinary users', async () => {
+      process.env.ADMIN_EMAILS = 'operator@x.test';
+      prisma.account.create.mockResolvedValue(
+        accountRecord({ email: null, name: 'GriddyBot', isBot: true })
+      );
+
+      const result = await service.provisionBot('GriddyBot');
+
+      expect(verifyTokenClaims(result.token)).toEqual({ sub: ACCOUNT_ID, admin: false });
     });
   });
 });

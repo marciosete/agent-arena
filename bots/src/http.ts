@@ -10,6 +10,7 @@ import {
   type Market,
   type PlaceBetRequest,
 } from '@arena/contracts';
+import { signToken } from '@arena/service-auth';
 
 /**
  * Thin HTTP client for the arena services. Every response is zod-parsed
@@ -38,7 +39,6 @@ export type HttpResult<T> =
 export interface ClientConfig {
   pricingUrl: string;
   bettingUrl: string;
-  adminKey: string;
   /** per-request timeout; a black-holed call must never stall the roster loop */
   requestTimeoutMs?: number;
 }
@@ -71,12 +71,18 @@ export class ArenaClient implements BotClient {
     private readonly fetchImpl: FetchLike = fetch
   ) {}
 
-  /** Bot provisioning — the roster's first and only auth step (no inbox, no OTP). */
+  /**
+   * Bot provisioning — the roster's first and only auth step (no inbox, no OTP).
+   * Admin-gated by IDENTITY: we mint an admin service token off the shared
+   * SESSION_SECRET (@arena/service-auth) and send it as the Bearer. Its
+   * unforgeable `admin` claim is what unlocks POST /accounts — no shared key.
+   */
   provisionBot(name: string): Promise<HttpResult<AuthResponse>> {
     const body: CreateAccountRequest = { name, isBot: true };
+    const adminToken = signToken('bots', { admin: true });
     return this.request(AuthResponseSchema, `${this.config.bettingUrl}/accounts`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-admin-key': this.config.adminKey },
+      headers: { 'content-type': 'application/json', ...bearer(adminToken) },
       body: JSON.stringify(body),
     });
   }

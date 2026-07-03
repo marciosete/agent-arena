@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { IncomingHttpHeaders } from 'node:http';
-import { verifyToken } from './token';
+import { verifyTokenClaims } from './token';
 
 /** Reflector metadata key marking a handler/controller as publicly accessible. */
 export const IS_PUBLIC_KEY = 'isPublic';
@@ -26,10 +26,12 @@ export const IS_PUBLIC_KEY = 'isPublic';
  */
 export const Public = (): CustomDecorator => SetMetadata(IS_PUBLIC_KEY, true);
 
-/** The underlying HTTP request enriched with the authenticated account id. */
+/** The underlying HTTP request enriched with the authenticated identity. */
 export interface AuthenticatedRequest {
   headers: IncomingHttpHeaders;
   accountId?: string;
+  /** true when the token carried the admin claim — read by {@link AdminGuard}. */
+  isAdmin?: boolean;
 }
 
 /**
@@ -59,12 +61,13 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Bearer token required');
     }
 
-    const accountId = verifyToken(token);
-    if (!accountId) {
+    const claims = verifyTokenClaims(token);
+    if (!claims) {
       throw new UnauthorizedException('Invalid or expired session token');
     }
 
-    request.accountId = accountId;
+    request.accountId = claims.sub;
+    request.isAdmin = claims.admin;
     return true;
   }
 }

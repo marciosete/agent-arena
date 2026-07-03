@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { verifyTokenClaims } from '@arena/service-auth';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { ArenaClient, type ClientConfig, type FetchLike } from '../http';
 import {
   accountFixture,
@@ -8,10 +9,15 @@ import {
   marketFixture,
 } from './fixtures';
 
+// The client mints its admin service token off SESSION_SECRET; verifyTokenClaims
+// below reads the same value, so both must see it before any token is signed.
+beforeAll(() => {
+  process.env.SESSION_SECRET = 'test-session-secret';
+});
+
 const config: ClientConfig = {
   pricingUrl: 'http://pricing.test',
   bettingUrl: 'http://betting.test',
-  adminKey: 'the-admin-key',
 };
 
 interface RecordedCall {
@@ -35,14 +41,23 @@ function headersOf(call: RecordedCall): Record<string, string> {
 }
 
 describe('ArenaClient success paths', () => {
-  it('provisions a bot with POST /accounts, the x-admin-key header and { name, isBot: true }', async () => {
+  it('provisions a bot with POST /accounts, a Bearer admin service token (no x-admin-key) and { name, isBot: true }', async () => {
     const { calls, client } = recordingClient(() => jsonResponse(authResponseFixture()));
     const result = await client.provisionBot('Steady');
 
     expect(result).toEqual({ ok: true, data: authResponseFixture() });
     expect(calls[0].url).toBe('http://betting.test/accounts');
     expect(calls[0].init?.method).toBe('POST');
-    expect(headersOf(calls[0])['x-admin-key']).toBe('the-admin-key');
+
+    // Provisioning is gated by IDENTITY, not a shared key: no x-admin-key header,
+    // and the Authorization Bearer carries a signed service token whose verified
+    // claims are sub 'bots' with admin: true — that claim is what unlocks POST /accounts.
+    const headers = headersOf(calls[0]);
+    expect(headers).not.toHaveProperty('x-admin-key');
+    expect(headers.authorization).toMatch(/^Bearer /);
+    const claims = verifyTokenClaims(headers.authorization.slice('Bearer '.length));
+    expect(claims).toEqual({ sub: 'bots', admin: true });
+
     expect(JSON.parse(String(calls[0].init?.body))).toEqual({ name: 'Steady', isBot: true });
   });
 

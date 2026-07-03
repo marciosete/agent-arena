@@ -94,6 +94,17 @@ export class PricingService implements OnModuleInit {
     return sortMarkets(markets).map(toContractMarket);
   }
 
+  /**
+   * Admin reset (Reset-bracket cascade): wipe every persisted row, then reseed
+   * fresh OPEN markets from the CURRENT contract FIXTURES via the shared seeder,
+   * and return the rebuilt Market[]. Guarded by AdminGuard at the controller.
+   */
+  async reset(): Promise<Market[]> {
+    await this.repository.clearAll();
+    await this.seedMarkets();
+    return this.getMarkets();
+  }
+
   async getMarketByFixtureId(fixtureId: string): Promise<Market> {
     const market = await this.repository.findMarketById(fixtureId);
     if (market?.type !== 'MATCH_WINNER') {

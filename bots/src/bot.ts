@@ -47,7 +47,8 @@ function tag(personality: Personality): string {
 }
 
 /**
- * A bot's first and ONLY auth step: admin-keyed POST /accounts. Bots have no
+ * A bot's first and ONLY auth step: identity-admin-gated POST /accounts, unlocked
+ * by an admin service token the client mints off SESSION_SECRET. Bots have no
  * inbox, so there is no OTP — the returned token is its Bearer on every call.
  * Returns null (retry next round) while betting is still coming online.
  *

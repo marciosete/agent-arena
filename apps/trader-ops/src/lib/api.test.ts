@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  adminActionError,
   ApiError,
   errorMessage,
   fetchParsed,
   friendlyStatus,
   MALFORMED_MESSAGE,
+  NOT_ADMIN_MESSAGE,
   sendParsed,
   UNREACHABLE_MESSAGE,
   type ApiFetch,
@@ -40,11 +42,11 @@ describe('fetchParsed', () => {
     expect((err as ApiError).message).toContain('Not authorised (401)');
   });
 
-  it('rejects with a clear admin-key message on 403', async () => {
+  it('rejects with a clear forbidden message on 403', async () => {
     const api: ApiFetch = async () => jsonRes({}, 403);
     const err = await fetchParsed(api, 'http://localhost', echo).catch((e: unknown) => e);
     expect((err as ApiError).status).toBe(403);
-    expect((err as ApiError).message).toContain('Admin key rejected (403)');
+    expect((err as ApiError).message).toContain('Forbidden (403)');
   });
 
   it('falls back to a generic message for other statuses', async () => {
@@ -72,11 +74,10 @@ describe('fetchParsed', () => {
   });
 
   it('appends the server-provided message to HTTP failures', async () => {
-    const api: ApiFetch = async () =>
-      jsonRes({ message: 'x-admin-key header required to modify flags' }, 401);
+    const api: ApiFetch = async () => jsonRes({ message: 'token expired' }, 401);
     const err = await fetchParsed(api, 'http://localhost', echo).catch((e: unknown) => e);
     expect((err as ApiError).message).toBe(
-      'Not authorised (401) — the session token was rejected. Sign in again. x-admin-key header required to modify flags'
+      'Not authorised (401) — the session token was rejected. Sign in again. token expired'
     );
   });
 
@@ -91,34 +92,28 @@ describe('fetchParsed', () => {
 });
 
 describe('sendParsed', () => {
-  it('sends JSON with Content-Type and the admin key header', async () => {
+  it('sends JSON with a Content-Type header and no x-admin-key (auth rides the Bearer)', async () => {
     const api = vi.fn(async (_url: string, _init?: RequestInit) => jsonRes({ ok: true }));
     await sendParsed(
       api,
       'http://localhost/flags/k',
-      { method: 'PUT', body: { enabled: true }, adminKey: 'sesame' },
+      { method: 'PUT', body: { enabled: true } },
       echo
     );
     const [url, init] = api.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('http://localhost/flags/k');
     expect(init.method).toBe('PUT');
     expect(init.body).toBe('{"enabled":true}');
-    expect(init.headers).toEqual({ 'Content-Type': 'application/json', 'x-admin-key': 'sesame' });
+    expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect('x-admin-key' in (init.headers as Record<string, string>)).toBe(false);
   });
 
-  it('omits Content-Type and body when there is no body', async () => {
+  it('omits Content-Type and body (and any header) when there is no body', async () => {
     const api = vi.fn(async (_url: string, _init?: RequestInit) => jsonRes({ ok: true }));
-    await sendParsed(api, 'http://localhost/play-next', { method: 'POST', adminKey: 'k' }, echo);
+    await sendParsed(api, 'http://localhost/play-next', { method: 'POST' }, echo);
     const [, init] = api.mock.calls[0] as [string, RequestInit];
     expect(init.body).toBeUndefined();
-    expect(init.headers).toEqual({ 'x-admin-key': 'k' });
-  });
-
-  it('omits the admin key header when none is given', async () => {
-    const api = vi.fn(async (_url: string, _init?: RequestInit) => jsonRes({ ok: true }));
-    await sendParsed(api, 'http://localhost', { method: 'POST', body: {} }, echo);
-    const [, init] = api.mock.calls[0] as [string, RequestInit];
-    expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(init.headers).toEqual({});
   });
 
   it('surfaces HTTP failures as ApiError', async () => {
@@ -139,5 +134,14 @@ describe('helpers', () => {
   it('errorMessage unwraps Errors and falls back otherwise', () => {
     expect(errorMessage(new Error('boom'))).toBe('boom');
     expect(errorMessage('nope')).toBe('Request failed.');
+  });
+
+  it('adminActionError maps a 403 to the not-an-admin message', () => {
+    expect(adminActionError(new ApiError(403, 'Forbidden (403) — nope'))).toBe(NOT_ADMIN_MESSAGE);
+  });
+
+  it('adminActionError falls back to the error message for non-403 failures', () => {
+    expect(adminActionError(new ApiError(500, 'boom'))).toBe('boom');
+    expect(adminActionError('nope')).toBe('Request failed.');
   });
 });

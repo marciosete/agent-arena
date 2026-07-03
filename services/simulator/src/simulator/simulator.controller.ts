@@ -1,8 +1,7 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { RunRequestSchema, type RunRequest, type SimState } from '@arena/contracts';
-import { ZodValidationPipe } from '@arena/service-auth';
+import { AdminGuard, ZodValidationPipe } from '@arena/service-auth';
 import { SimulatorService } from './simulator.service';
-import { AdminGuard } from './admin.guard';
 
 // Express 5 leaves req.body undefined on a body-less POST; the contract's
 // intervalMs default must still apply, so undefined parses as {}.
@@ -18,8 +17,9 @@ export class SimulatorController {
     return this.simulator.getState();
   }
 
-  // Control plane — every mutation needs x-admin-key on top of the session JWT
-  // (a JWT proves authenticated; the admin key proves authorized to drive fate).
+  // Control plane — every mutation requires the token's `admin` claim (the
+  // shared AdminGuard reads it off the request the global JwtAuthGuard verified).
+  // Authority is identity, carried in the token: no shared keys, no headers.
 
   @Post('play-next')
   @UseGuards(AdminGuard)
@@ -35,7 +35,7 @@ export class SimulatorController {
 
   @Post('reset')
   @UseGuards(AdminGuard)
-  reset(): SimState {
+  reset(): Promise<SimState> {
     return this.simulator.reset();
   }
 }

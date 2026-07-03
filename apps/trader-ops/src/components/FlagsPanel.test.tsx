@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { STORAGE_KEYS } from '../lib/config';
+import { NOT_ADMIN_MESSAGE } from '../lib/api';
 import { fmtClock } from '../lib/format';
 import { jsonRes, renderAuthed } from '../__tests__/helpers';
 import { FlagsPanel } from './FlagsPanel';
@@ -108,23 +108,17 @@ describe('FlagsPanel', () => {
     expect(getHeaders.get('Authorization')?.startsWith('Bearer ')).toBe(true);
   });
 
-  it('flips a flag via PUT /flags/:key with the x-admin-key header (key from the prompt, kept in localStorage)', async () => {
+  it('flips a flag via PUT /flags/:key on the Bearer alone — no admin key to arm, no x-admin-key sent', async () => {
     const mock = stubFetch();
     renderAuthed(<FlagsPanel pollMs={600_000} />);
 
-    // no key yet: the prompt is shown and every switch is disabled
+    // no key gate any more: switches are live and there is no prompt / Change key control
     await screen.findByText('punter-markets');
-    expect(localStorage.getItem(STORAGE_KEYS.flagsAdminKey)).toBeNull();
+    expect(screen.queryByPlaceholderText('paste admin key')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Change key' })).toBeNull();
     expect((screen.getByLabelText('toggle punter-markets') as HTMLButtonElement).disabled).toBe(
-      true
+      false
     );
-
-    // unlock with an admin key → persisted to localStorage, never bundled
-    fireEvent.change(screen.getByPlaceholderText('paste admin key'), {
-      target: { value: 'FLIP-42' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Unlock' }));
-    expect(localStorage.getItem(STORAGE_KEYS.flagsAdminKey)).toBe('FLIP-42');
 
     // arm + confirm the release
     fireEvent.click(screen.getByLabelText('toggle punter-markets'));
@@ -134,58 +128,50 @@ describe('FlagsPanel', () => {
     // optimistic flip lands before the PUT resolves
     expect(ariaChecked('toggle punter-markets')).toBe('true');
 
-    // the PUT carried url + method + body + both gates (admin key and Bearer)
+    // the PUT carried url + method + body + Bearer, and NO x-admin-key
     const putCall = mock.mock.calls.find(([, init]) => init?.method === 'PUT');
     expect(putCall).toBeTruthy();
     expect(String(putCall?.[0])).toBe('http://localhost:4004/flags/punter-markets');
     expect(putCall?.[1]?.method).toBe('PUT');
     expect(putCall?.[1]?.body).toBe('{"enabled":true}');
-    const putHeaders = putCall?.[1]?.headers as Headers;
-    expect(putHeaders.get('x-admin-key')).toBe('FLIP-42');
+    const putHeaders = new Headers(putCall?.[1]?.headers);
+    expect(putHeaders.get('x-admin-key')).toBeNull();
     expect(putHeaders.get('Authorization')?.startsWith('Bearer ')).toBe(true);
 
     // stays enabled after the confirming refresh
     await waitFor(() => expect(ariaChecked('toggle punter-markets')).toBe('true'));
   });
 
-  it('never fires a PUT while no admin key is stored (switches disabled + prompt shown)', async () => {
-    const mock = stubFetch();
-    renderAuthed(<FlagsPanel pollMs={600_000} />);
-
-    await screen.findByText('punter-markets');
-    expect(screen.getByPlaceholderText('paste admin key')).toBeTruthy();
-    expect((screen.getByLabelText('toggle punter-markets') as HTMLButtonElement).disabled).toBe(
-      true
-    );
-    expect((screen.getByLabelText('toggle punter-confetti') as HTMLButtonElement).disabled).toBe(
-      true
-    );
-
-    const firedPut = mock.mock.calls.some(([, init]) => init?.method === 'PUT');
-    expect(firedPut).toBe(false);
-  });
-
-  it('a flip rejected 401 (the shipped flags guard) is surfaced clearly, rolls back, and clears the key', async () => {
-    localStorage.setItem(STORAGE_KEYS.flagsAdminKey, 'WRONG-KEY');
-    stubFetch({
-      onPut: () => jsonRes({ message: 'x-admin-key header required to modify flags' }, 401),
-    });
+  it('a flip rejected 403 shows the not-an-admin message, rolls back, and keeps the switch live', async () => {
+    stubFetch({ onPut: () => jsonRes({ message: 'no' }, 403) });
     renderAuthed(<FlagsPanel pollMs={600_000} />);
 
     await screen.findByText('punter-markets');
     fireEvent.click(screen.getByLabelText('toggle punter-markets'));
     fireEvent.click(screen.getByText('Confirm'));
 
-    // clear admin-key text (flags rejects a bad key with 401), and the flip is rolled back
-    expect(await screen.findByText(/Admin key rejected \(401\)/)).toBeTruthy();
+    // a 403 now means the operator isn't an admin — a plain message, no key prompt
+    expect(await screen.findByText(NOT_ADMIN_MESSAGE)).toBeTruthy();
     await waitFor(() => expect(ariaChecked('toggle punter-markets')).toBe('false'));
-    // the rejected key is dropped so the prompt returns
-    await waitFor(() => expect(localStorage.getItem(STORAGE_KEYS.flagsAdminKey)).toBeNull());
-    expect(screen.getByPlaceholderText('paste admin key')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('paste admin key')).toBeNull();
+    expect((screen.getByLabelText('toggle punter-markets') as HTMLButtonElement).disabled).toBe(
+      false
+    );
+  });
+
+  it('a flip rejected 401 ends the session and returns to the login page', async () => {
+    stubFetch({ onPut: () => jsonRes({ message: 'token expired' }, 401) });
+    renderAuthed(<FlagsPanel pollMs={600_000} />);
+
+    await screen.findByText('punter-markets');
+    fireEvent.click(screen.getByLabelText('toggle punter-markets'));
+    fireEvent.click(screen.getByText('Confirm'));
+
+    expect(await screen.findByText('Sign in to Arena')).toBeTruthy();
+    expect(localStorage.getItem('arena.token')).toBeNull();
   });
 
   it('the switch never reverts while the confirming refresh is still in flight', async () => {
-    localStorage.setItem(STORAGE_KEYS.flagsAdminKey, 'FLIP-42');
     const flags = seedFlags();
     let gets = 0;
     const mock = stubFetch({
@@ -210,24 +196,7 @@ describe('FlagsPanel', () => {
     expect(ariaChecked('toggle punter-markets')).toBe('true');
   });
 
-  it('a flip rejected 403 is surfaced and clears the stored admin key so the prompt returns', async () => {
-    localStorage.setItem(STORAGE_KEYS.flagsAdminKey, 'WRONG-KEY');
-    stubFetch({ onPut: () => jsonRes({ message: 'no' }, 403) });
-    renderAuthed(<FlagsPanel pollMs={600_000} />);
-
-    await screen.findByText('punter-markets');
-    fireEvent.click(screen.getByLabelText('toggle punter-markets'));
-    fireEvent.click(screen.getByText('Confirm'));
-
-    expect(await screen.findByText(/Admin key rejected \(403\)/)).toBeTruthy();
-    // the rejected key is dropped and the prompt reappears
-    await waitFor(() => expect(localStorage.getItem(STORAGE_KEYS.flagsAdminKey)).toBeNull());
-    expect(screen.getByPlaceholderText('paste admin key')).toBeTruthy();
-    expect(ariaChecked('toggle punter-markets')).toBe('false');
-  });
-
   it('kills an enabled flag: kill prompt + PUT { enabled: false }', async () => {
-    localStorage.setItem(STORAGE_KEYS.flagsAdminKey, 'FLIP-42');
     const mock = stubFetch();
     renderAuthed(<FlagsPanel pollMs={600_000} />);
 
@@ -244,7 +213,6 @@ describe('FlagsPanel', () => {
   });
 
   it('cancelling an armed flip closes the confirm and fires no PUT', async () => {
-    localStorage.setItem(STORAGE_KEYS.flagsAdminKey, 'FLIP-42');
     const mock = stubFetch();
     renderAuthed(<FlagsPanel pollMs={600_000} />);
 
@@ -256,27 +224,6 @@ describe('FlagsPanel', () => {
     expect(screen.queryByText('Release punter-markets to production?')).toBeNull();
     expect(ariaChecked('toggle punter-markets')).toBe('false');
     expect(mock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false);
-  });
-
-  it('Change key clears the stored admin key and reopens the prompt', async () => {
-    localStorage.setItem(STORAGE_KEYS.flagsAdminKey, 'FLIP-42');
-    stubFetch();
-    renderAuthed(<FlagsPanel pollMs={600_000} />);
-
-    await screen.findByText('punter-markets');
-    // with a key stored the prompt is hidden and switches are live
-    expect(screen.queryByPlaceholderText('paste admin key')).toBeNull();
-    expect((screen.getByLabelText('toggle punter-markets') as HTMLButtonElement).disabled).toBe(
-      false
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Change key' }));
-
-    expect(localStorage.getItem(STORAGE_KEYS.flagsAdminKey)).toBeNull();
-    expect(screen.getByPlaceholderText('paste admin key')).toBeTruthy();
-    expect((screen.getByLabelText('toggle punter-markets') as HTMLButtonElement).disabled).toBe(
-      true
-    );
   });
 
   it('degrades gracefully when the flags service is down (error meta + empty state, no crash)', async () => {

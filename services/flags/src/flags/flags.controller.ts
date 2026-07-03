@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
 import { UpdateFlagRequestSchema, type FeatureFlag } from '@arena/contracts';
+import { AdminGuard } from '@arena/service-auth';
 import { FlagsService } from './flags.service';
-import { FlagsWriteGuard } from './flags-write.guard';
 
 @Controller('flags')
 export class FlagsController {
@@ -13,7 +13,7 @@ export class FlagsController {
   }
 
   @Put(':key')
-  @UseGuards(FlagsWriteGuard)
+  @UseGuards(AdminGuard)
   update(@Param('key') key: string, @Body() body: unknown): Promise<FeatureFlag> {
     const parsed = UpdateFlagRequestSchema.safeParse(body);
     if (!parsed.success) {

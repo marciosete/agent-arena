@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { SimStateSchema } from '@arena/contracts';
 import { useApi } from '@arena/web-auth';
-import { errorMessage, sendParsed } from '../lib/api';
-import { SERVICE_URLS, STORAGE_KEYS } from '../lib/config';
+import { adminActionError, ApiError, sendParsed } from '../lib/api';
+import { SERVICE_URLS } from '../lib/config';
 import { fmtClock } from '../lib/format';
-import { useAdminKeyGate } from '../hooks/useAdminKeyGate';
+import { useSessionGuard } from '../hooks/useSessionGuard';
 import { Panel } from './Panel';
 
 type ActionId = 'play' | 'run' | 'reset';
@@ -45,47 +45,38 @@ const ACTIONS: readonly FinaleAction[] = [
 ];
 
 /**
- * Optional finale control plane. Every simulator control POST needs the JWT plus the
- * SIMULATOR_ADMIN_KEY (a different key from the flags one) as `x-admin-key`; the key is
- * prompted for once and kept in localStorage, never bundled. Each action arms an inline
- * confirm — no `window.confirm` — and only one action is armed at a time.
+ * Finale control plane. Every simulator control POST rides the operator's session JWT
+ * (attached by `apiFetch`); the simulator authorises it from the token's `admin` claim,
+ * so there is no separate key to arm — a non-admin operator simply gets a 403. Each action
+ * arms an inline confirm — no `window.confirm` — and only one action is armed at a time.
  */
 export function FinaleControls() {
   const api = useApi();
+  const onAuthError = useSessionGuard();
   const [armed, setArmed] = useState<ActionId | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [doneAt, setDoneAt] = useState<number | null>(null);
 
-  // Clearing the key (Change key, or a rejection) also disarms any pending confirm —
-  // a keyless Confirm button must never sit on screen doing nothing.
-  const disarm = useCallback(() => setArmed(null), []);
-  const gate = useAdminKeyGate({
-    storageKey: STORAGE_KEYS.simAdminKey,
-    label: 'simulator controls',
-    keyName: 'SIMULATOR_ADMIN_KEY',
-    onClear: disarm,
-  });
-
   const armedAction = ACTIONS.find((action) => action.id === armed) ?? null;
 
   async function runAction(action: FinaleAction): Promise<void> {
-    if (!gate.adminKey) {
-      setArmed(null);
-      return;
-    }
     setBusy(true);
     try {
       await sendParsed(
         api,
         `${SERVICE_URLS.simulator}${action.path}`,
-        { method: 'POST', body: action.body, adminKey: gate.adminKey },
+        { method: 'POST', body: action.body },
         SimStateSchema
       );
       setError(null);
       setDoneAt(Date.now());
     } catch (err) {
-      setError(gate.rejectionMessage(err) ?? errorMessage(err));
+      if (err instanceof ApiError && err.status === 401) {
+        onAuthError(err); // expired session — back to login, same as a read 401
+        return;
+      }
+      setError(adminActionError(err));
     } finally {
       setBusy(false);
       setArmed(null);
@@ -93,8 +84,7 @@ export function FinaleControls() {
   }
 
   return (
-    <Panel title="Finale control" actions={gate.actionNode}>
-      {gate.promptNode}
+    <Panel title="Finale control">
       {error && <p className="error-note">{error}</p>}
       <div className="btn-row">
         {ACTIONS.map((action) => (
@@ -102,7 +92,7 @@ export function FinaleControls() {
             key={action.id}
             type="button"
             className={action.className}
-            disabled={!gate.adminKey || busy || armed !== null}
+            disabled={busy || armed !== null}
             onClick={() => {
               setDoneAt(null);
               setArmed(action.id);
@@ -123,7 +113,12 @@ export function FinaleControls() {
           >
             Confirm
           </button>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={disarm}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={busy}
+            onClick={() => setArmed(null)}
+          >
             Cancel
           </button>
         </div>

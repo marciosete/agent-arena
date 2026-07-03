@@ -7,7 +7,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { SettlementController } from './settlement.controller';
 import { SettlementService } from './settlement.service';
 
-const ADMIN_KEY = 'test-admin-key';
 const SETTLE_BODY = {
   settlement: {
     fixtureId: 'qf-1',
@@ -22,13 +21,9 @@ const SETTLE_BODY = {
 
 describe('SettlementController (e2e, real JwtAuthGuard + AdminGuard)', () => {
   let app: INestApplication;
-  let previousAdminKey: string | undefined;
   const settlement = { settle: vi.fn() };
 
   beforeAll(async () => {
-    previousAdminKey = process.env.BETTING_ADMIN_KEY;
-    process.env.BETTING_ADMIN_KEY = ADMIN_KEY;
-
     const moduleRef = await Test.createTestingModule({
       controllers: [SettlementController],
       providers: [
@@ -42,11 +37,6 @@ describe('SettlementController (e2e, real JwtAuthGuard + AdminGuard)', () => {
 
   afterAll(async () => {
     await app.close();
-    if (previousAdminKey === undefined) {
-      delete process.env.BETTING_ADMIN_KEY;
-    } else {
-      process.env.BETTING_ADMIN_KEY = previousAdminKey;
-    }
   });
 
   beforeEach(() => {
@@ -54,41 +44,38 @@ describe('SettlementController (e2e, real JwtAuthGuard + AdminGuard)', () => {
     settlement.settle.mockResolvedValue({ settledBets: 2, totalPaidOut: 250 });
   });
 
-  const serviceBearer = () => `Bearer ${signToken('simulator')}`;
+  // The simulator settles with an admin-claim service token.
+  const adminBearer = () => `Bearer ${signToken('simulator', { admin: true })}`;
+  // An ordinary punter token — valid session, but no admin authority.
+  const punterBearer = () => `Bearer ${signToken('punter')}`;
 
-  it('POST /settle returns 401 without a Bearer token, even with the right admin key', async () => {
+  it('POST /settle returns 401 without a Bearer token', async () => {
+    await request(app.getHttpServer()).post('/settle').send(SETTLE_BODY).expect(401);
+    expect(settlement.settle).not.toHaveBeenCalled();
+  });
+
+  it('POST /settle returns 401 for an invalid/garbage token', async () => {
     await request(app.getHttpServer())
       .post('/settle')
-      .set('x-admin-key', ADMIN_KEY)
+      .set('authorization', 'Bearer not-a-real-token')
       .send(SETTLE_BODY)
       .expect(401);
     expect(settlement.settle).not.toHaveBeenCalled();
   });
 
-  it('POST /settle returns 401 with a valid Bearer but a MISSING x-admin-key', async () => {
+  it('POST /settle returns 403 for a valid NON-admin token', async () => {
     await request(app.getHttpServer())
       .post('/settle')
-      .set('authorization', serviceBearer())
+      .set('authorization', punterBearer())
       .send(SETTLE_BODY)
-      .expect(401);
+      .expect(403);
     expect(settlement.settle).not.toHaveBeenCalled();
   });
 
-  it('POST /settle returns 401 with a valid Bearer but the WRONG x-admin-key', async () => {
-    await request(app.getHttpServer())
-      .post('/settle')
-      .set('authorization', serviceBearer())
-      .set('x-admin-key', 'guessed-key')
-      .send(SETTLE_BODY)
-      .expect(401);
-    expect(settlement.settle).not.toHaveBeenCalled();
-  });
-
-  it('settles with Bearer + correct x-admin-key and returns the SettleResponse', async () => {
+  it('settles with an admin token and returns the SettleResponse', async () => {
     const response = await request(app.getHttpServer())
       .post('/settle')
-      .set('authorization', serviceBearer())
-      .set('x-admin-key', ADMIN_KEY)
+      .set('authorization', adminBearer())
       .send(SETTLE_BODY)
       .expect(200);
 
@@ -99,8 +86,7 @@ describe('SettlementController (e2e, real JwtAuthGuard + AdminGuard)', () => {
   it('rejects a contract-invalid settle body with 400', async () => {
     await request(app.getHttpServer())
       .post('/settle')
-      .set('authorization', serviceBearer())
-      .set('x-admin-key', ADMIN_KEY)
+      .set('authorization', adminBearer())
       .send({ settlement: { fixtureId: 'qf-1' }, winningSelections: [] })
       .expect(400);
 

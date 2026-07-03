@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { signToken, verifyToken } from './token';
+import { signToken, verifyToken, verifyTokenClaims, isAdminEmail } from './token';
 
 const ACCOUNT_ID = 'account-123';
 const TWELVE_HOURS_SECONDS = 12 * 60 * 60;
@@ -33,6 +33,48 @@ describe('token', () => {
   it('round-trips: a freshly signed token verifies back to the account id', () => {
     const token = signToken(ACCOUNT_ID);
     expect(verifyToken(token)).toBe(ACCOUNT_ID);
+  });
+
+  it('defaults to a non-admin token; verifyTokenClaims reports admin=false', () => {
+    const claims = verifyTokenClaims(signToken(ACCOUNT_ID));
+    expect(claims).toEqual({ sub: ACCOUNT_ID, admin: false });
+  });
+
+  it('carries an unforgeable admin claim when signed with { admin: true }', () => {
+    const claims = verifyTokenClaims(signToken(ACCOUNT_ID, { admin: true }));
+    expect(claims).toEqual({ sub: ACCOUNT_ID, admin: true });
+  });
+
+  it('a payload with a flipped admin flag fails the signature check', () => {
+    const [header, , signature] = signToken(ACCOUNT_ID).split('.');
+    const original = decodeSegment(signToken(ACCOUNT_ID).split('.')[1]);
+    const forged = encodeSegment({ ...original, admin: true });
+    // Re-encoding the payload without re-signing invalidates it.
+    expect(verifyTokenClaims(`${header}.${forged}.${signature}`)).toBeNull();
+  });
+});
+
+describe('isAdminEmail', () => {
+  afterEach(() => {
+    delete process.env.ADMIN_EMAILS;
+  });
+
+  it('is false when no allowlist is configured', () => {
+    expect(isAdminEmail('a@b.com')).toBe(false);
+  });
+
+  it('matches allowlisted emails case-insensitively, ignoring surrounding space', () => {
+    process.env.ADMIN_EMAILS = ' Boss@Arena.com , ops@arena.com ';
+    expect(isAdminEmail('boss@arena.com')).toBe(true);
+    expect(isAdminEmail('OPS@ARENA.COM')).toBe(true);
+    expect(isAdminEmail('punter@arena.com')).toBe(false);
+  });
+
+  it('is false for null/empty email', () => {
+    process.env.ADMIN_EMAILS = 'boss@arena.com';
+    expect(isAdminEmail(null)).toBe(false);
+    expect(isAdminEmail(undefined)).toBe(false);
+    expect(isAdminEmail('')).toBe(false);
   });
 
   it('produces a standard HS256 JWT: header.payload.signature with second-precision claims', () => {

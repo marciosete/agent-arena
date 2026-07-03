@@ -24,8 +24,11 @@ export class ApiError extends Error {
 const FRIENDLY_STATUS: Record<number, string> = {
   400: 'The service rejected the request as invalid (400).',
   401: 'Not authorised (401) — the session token was rejected. Sign in again.',
-  403: 'Admin key rejected (403) — x-admin-key is missing or wrong.',
+  403: 'Forbidden (403) — your account is not authorised for this action.',
 };
+
+/** Shown when an admin action returns 403: authorization is identity-based now. */
+export const NOT_ADMIN_MESSAGE = "Your account isn't an admin — sign in with an admin email.";
 
 export function friendlyStatus(status: number): string {
   return FRIENDLY_STATUS[status] ?? `Request failed (${status}).`;
@@ -90,11 +93,13 @@ export async function fetchParsed<T>(api: ApiFetch, url: string, parser: Parser<
 export interface SendOptions {
   method: 'POST' | 'PUT';
   body?: unknown;
-  /** extra control-plane gate on top of the JWT (flags flip, simulator controls) */
-  adminKey?: string;
 }
 
-/** Send a mutation and parse the JSON response against `parser`. */
+/**
+ * Send a mutation and parse the JSON response against `parser`. Authorization rides the
+ * Bearer JWT that `apiFetch` attaches — admin endpoints authorise off the token's `admin`
+ * claim, so there is no extra header to send.
+ */
 export async function sendParsed<T>(
   api: ApiFetch,
   url: string,
@@ -104,9 +109,6 @@ export async function sendParsed<T>(
   const headers: Record<string, string> = {};
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json';
-  }
-  if (options.adminKey) {
-    headers['x-admin-key'] = options.adminKey;
   }
   const res = await run(api, url, {
     method: options.method,
@@ -119,4 +121,16 @@ export async function sendParsed<T>(
 /** Human-readable message for anything a fetch can throw. */
 export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : 'Request failed.';
+}
+
+/**
+ * Message for a failed admin action (flag flip, simulator control). A 401 is handled as an
+ * expired session by the caller; a 403 here means the operator's account is not on the admin
+ * allowlist, so surface that plainly rather than the raw status text.
+ */
+export function adminActionError(err: unknown): string {
+  if (err instanceof ApiError && err.status === 403) {
+    return NOT_ADMIN_MESSAGE;
+  }
+  return errorMessage(err);
 }

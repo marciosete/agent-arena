@@ -16,7 +16,7 @@ function testConfig(overrides: Partial<BotsConfig> = {}): BotsConfig {
   return {
     pricingUrl: 'http://127.0.0.1:1',
     bettingUrl: 'http://127.0.0.1:1',
-    adminKey: 'the-admin-key',
+    sessionSecret: 'the-session-secret',
     roundIntervalMs: 5,
     ...overrides,
   };
@@ -167,12 +167,12 @@ describe('runRoster', () => {
     expect(logs.join('\n')).toContain('will re-provision next round');
   });
 
-  it('warns loudly at startup when BETTING_ADMIN_KEY is missing', async () => {
+  it('warns loudly at startup when SESSION_SECRET is missing', async () => {
     const logs: string[] = [];
     const signals = new EventEmitter();
 
     const done = runRoster({
-      config: testConfig({ adminKey: '' }),
+      config: testConfig({ sessionSecret: '' }),
       client: happyClient(),
       log: (line) => logs.push(line),
       rng: () => 0,
@@ -181,11 +181,11 @@ describe('runRoster', () => {
       roster: [{ name: 'Keyless', emoji: '🔓', tagline: 'locked out', strategy: () => [] }],
     });
 
-    await waitFor(() => logs.some((line) => line.includes('BETTING_ADMIN_KEY')));
+    await waitFor(() => logs.some((line) => line.includes('SESSION_SECRET')));
     signals.emit('SIGINT');
     await done;
 
-    const warning = logs.find((line) => line.includes('BETTING_ADMIN_KEY'));
+    const warning = logs.find((line) => line.includes('SESSION_SECRET'));
     expect(warning).toContain('not set');
   });
 

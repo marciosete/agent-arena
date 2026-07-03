@@ -13,6 +13,9 @@ const OP_SELECTION_CREATE = 'selection.createMany';
 const OP_FIXTURE_UPDATE = 'fixtureState.updateMany';
 const OP_MARKET_UPDATE = 'market.update';
 const OP_EVENT_CREATE = 'repriceEvent.create';
+const OP_MARKET_DELETE = 'market.deleteMany';
+const OP_EVENT_DELETE = 'repriceEvent.deleteMany';
+const OP_FIXTURE_DELETE = 'fixtureState.deleteMany';
 
 interface RecordedOp {
   op: string;
@@ -28,6 +31,7 @@ function createPrismaMock() {
       upsert: record(OP_MARKET_UPSERT),
       update: record(OP_MARKET_UPDATE),
       updateMany: vi.fn(),
+      deleteMany: record(OP_MARKET_DELETE),
     },
     selection: {
       deleteMany: record(OP_SELECTION_DELETE),
@@ -37,8 +41,9 @@ function createPrismaMock() {
       findMany: vi.fn(),
       createMany: vi.fn(),
       updateMany: record(OP_FIXTURE_UPDATE),
+      deleteMany: record(OP_FIXTURE_DELETE),
     },
-    repriceEvent: { create: record(OP_EVENT_CREATE) },
+    repriceEvent: { create: record(OP_EVENT_CREATE), deleteMany: record(OP_EVENT_DELETE) },
     $transaction: vi.fn((ops: RecordedOp[]) => Promise.resolve(ops)),
   };
 }
@@ -151,6 +156,21 @@ describe('PrismaMarketsRepository writes', () => {
       where: { id: { in: [R32_9, 'R32-10'] } },
       data: { status: 'settled' },
     });
+  });
+
+  it('clears every row in one transaction, selections before markets (FK order)', async () => {
+    const { prisma, repository } = createRepository();
+    await repository.clearAll();
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    const ops = prisma.$transaction.mock.calls[0]?.[0] as RecordedOp[];
+    expect(ops.map((operation) => operation.op)).toEqual([
+      OP_SELECTION_DELETE,
+      OP_MARKET_DELETE,
+      OP_EVENT_DELETE,
+      OP_FIXTURE_DELETE,
+    ]);
+    expect(prisma.selection.deleteMany).toHaveBeenCalledOnce();
+    expect(prisma.market.deleteMany).toHaveBeenCalledOnce();
   });
 
   it('upserts a market then replaces its selection set, in one transaction', async () => {

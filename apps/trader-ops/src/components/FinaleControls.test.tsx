@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import type { SimState } from '@arena/contracts';
-import { STORAGE_KEYS } from '../lib/config';
+import { NOT_ADMIN_MESSAGE } from '../lib/api';
 import { jsonRes, renderAuthed } from '../__tests__/helpers';
 import { FinaleControls } from './FinaleControls';
 
@@ -28,9 +28,8 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe('FinaleControls with a stored key', () => {
-  it('confirming Play next POSTs to /play-next with x-admin-key and Bearer, then shows a done note', async () => {
-    localStorage.setItem(STORAGE_KEYS.simAdminKey, 'sim-secret');
+describe('FinaleControls', () => {
+  it('confirming Play next POSTs to /play-next with the Bearer and no x-admin-key, then shows a done note', async () => {
     const fetchMock = vi.fn(async () => jsonRes(SIM_STATE));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -45,14 +44,13 @@ describe('FinaleControls with a stored key', () => {
     expect(init.method).toBe('POST');
     expect(init.body).toBeUndefined(); // play-next carries no body
     const headers = new Headers(init.headers);
-    expect(headers.get('x-admin-key')).toBe('sim-secret');
+    expect(headers.get('x-admin-key')).toBeNull();
     expect(headers.get('Authorization')).toMatch(/^Bearer /);
 
     expect(await screen.findByText(/^done \d\d:\d\d:\d\d$/)).toBeTruthy();
   });
 
   it('confirming Run to final sends the intervalMs body as JSON', async () => {
-    localStorage.setItem(STORAGE_KEYS.simAdminKey, 'sim-secret');
     const fetchMock = vi.fn(async () => jsonRes(SIM_STATE));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -67,7 +65,6 @@ describe('FinaleControls with a stored key', () => {
   });
 
   it('Cancel disarms the confirm without sending a request', () => {
-    localStorage.setItem(STORAGE_KEYS.simAdminKey, 'sim-secret');
     const fetchMock = vi.fn(async () => jsonRes(SIM_STATE));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -80,57 +77,25 @@ describe('FinaleControls with a stored key', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('Change key while a confirm is armed also disarms it (no dead Confirm button)', () => {
-    localStorage.setItem(STORAGE_KEYS.simAdminKey, 'sim-secret');
-    const fetchMock = vi.fn(async () => jsonRes(SIM_STATE));
-    vi.stubGlobal('fetch', fetchMock);
-
-    renderAuthed(<FinaleControls />);
-    fireEvent.click(screen.getByRole('button', { name: 'Play next' }));
-    expect(screen.getByText('Simulate the next fixture?')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Change key' }));
-
-    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
-    expect(screen.getByText(/SIMULATOR_ADMIN_KEY/)).toBeTruthy();
-    expect(postCount(fetchMock)).toBe(0);
-  });
-
-  it('the Change key button clears the stored key and reveals the prompt', () => {
-    localStorage.setItem(STORAGE_KEYS.simAdminKey, 'sim-secret');
+  it('arms only one action at a time — the others disable until the confirm resolves', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonRes(SIM_STATE))
     );
 
     renderAuthed(<FinaleControls />);
-    expect(screen.queryByText(/SIMULATOR_ADMIN_KEY/)).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Change key' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Play next' }));
 
-    expect(screen.getByText(/SIMULATOR_ADMIN_KEY/)).toBeTruthy();
-    expect(localStorage.getItem(STORAGE_KEYS.simAdminKey)).toBeNull();
+    expect(screen.getByText('Simulate the next fixture?')).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'Run to final' }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(
+      (screen.getByRole('button', { name: 'Reset bracket' }) as HTMLButtonElement).disabled
+    ).toBe(true);
   });
-});
 
-describe('FinaleControls without a stored key', () => {
-  it('shows the key prompt and disables the actions so no POST is possible', () => {
-    const fetchMock = vi.fn(async () => jsonRes(SIM_STATE));
-    vi.stubGlobal('fetch', fetchMock);
-
-    renderAuthed(<FinaleControls />);
-    expect(screen.getByText(/SIMULATOR_ADMIN_KEY/)).toBeTruthy();
-
-    const playNext = screen.getByRole('button', { name: 'Play next' }) as HTMLButtonElement;
-    expect(playNext.disabled).toBe(true);
-    fireEvent.click(playNext);
-
-    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
-    expect(postCount(fetchMock)).toBe(0);
-  });
-});
-
-describe('FinaleControls key rejection', () => {
-  it('surfaces a 403 as an error note and clears the stale key so the prompt returns', async () => {
-    localStorage.setItem(STORAGE_KEYS.simAdminKey, 'stale-key');
+  it('surfaces a 403 as the not-an-admin message and fires no further POST', async () => {
     const fetchMock = vi.fn(async () => jsonRes({ message: 'forbidden' }, 403));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -138,22 +103,21 @@ describe('FinaleControls key rejection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Play next' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
-    expect(await screen.findByText(/Admin key rejected \(403\)/)).toBeTruthy();
-    expect(screen.getByPlaceholderText('paste admin key')).toBeTruthy();
-    expect(localStorage.getItem(STORAGE_KEYS.simAdminKey)).toBeNull();
+    expect(await screen.findByText(NOT_ADMIN_MESSAGE)).toBeTruthy();
+    expect(postCount(fetchMock)).toBe(1);
+    // there is no admin-key prompt any more — a 403 is not-an-admin, not a bad key
+    expect(screen.queryByPlaceholderText('paste admin key')).toBeNull();
   });
 
-  it('treats a 401 on an admin-keyed POST the same way (the shipped guards answer 401)', async () => {
-    localStorage.setItem(STORAGE_KEYS.simAdminKey, 'wrong-key');
-    const fetchMock = vi.fn(async () => jsonRes({ message: 'x-admin-key header required' }, 401));
+  it('treats a 401 on a control POST as an expired session and returns to the login page', async () => {
+    const fetchMock = vi.fn(async () => jsonRes({ message: 'token expired' }, 401));
     vi.stubGlobal('fetch', fetchMock);
 
     renderAuthed(<FinaleControls />);
     fireEvent.click(screen.getByRole('button', { name: 'Play next' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
-    expect(await screen.findByText(/Admin key rejected \(401\)/)).toBeTruthy();
-    expect(screen.getByPlaceholderText('paste admin key')).toBeTruthy();
-    expect(localStorage.getItem(STORAGE_KEYS.simAdminKey)).toBeNull();
+    expect(await screen.findByText('Sign in to Arena')).toBeTruthy();
+    expect(localStorage.getItem('arena.token')).toBeNull();
   });
 });

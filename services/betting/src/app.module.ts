@@ -9,6 +9,7 @@ import { AccountsModule } from './accounts/accounts.module';
 import { BetsModule } from './bets/bets.module';
 import { SettlementModule } from './settlement/settlement.module';
 import { ExposureModule } from './exposure/exposure.module';
+import { ResetModule } from './reset/reset.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ExposureModule } from './exposure/exposure.module';
     BetsModule,
     SettlementModule,
     ExposureModule,
+    ResetModule,
   ],
   controllers: [HealthController],
   // Every route requires a valid session JWT by default; @Public() opts out.

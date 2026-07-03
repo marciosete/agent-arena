@@ -2,7 +2,7 @@
  * Bot roster entrypoint — `npm run dev -w bots`.
  * Agents built by an agent: four punters provision their own accounts and
  * bet into the platform. Config via env: PRICING_URL, BETTING_URL,
- * BETTING_ADMIN_KEY, BOTS_ROUND_INTERVAL_MS (see src/config.ts).
+ * SESSION_SECRET, BOTS_ROUND_INTERVAL_MS (see src/config.ts).
  */
 import { loadConfig } from './config';
 import { runRoster } from './runner';

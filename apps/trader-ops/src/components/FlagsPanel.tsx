@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FeatureFlagSchema, type FeatureFlag } from '@arena/contracts';
 import { useApi } from '@arena/web-auth';
-import { POLL_MS, SERVICE_URLS, STORAGE_KEYS } from '../lib/config';
-import { errorMessage, fetchParsed, sendParsed } from '../lib/api';
+import { POLL_MS, SERVICE_URLS } from '../lib/config';
+import { adminActionError, ApiError, fetchParsed, sendParsed } from '../lib/api';
 import { fmtClock } from '../lib/format';
 import { usePoll } from '../hooks/usePoll';
-import { useAdminKeyGate } from '../hooks/useAdminKeyGate';
 import { useSessionGuard } from '../hooks/useSessionGuard';
 import { Panel } from './Panel';
 
@@ -22,7 +21,7 @@ interface FlagRowProps {
   flag: FeatureFlag;
   /** Effective state (poll data with any optimistic override applied). */
   enabled: boolean;
-  /** True while there is no admin key or a flip is in flight — a flip must be impossible. */
+  /** True while a flip is in flight — a second flip must be impossible. */
   disabled: boolean;
   /** The armed flip when it belongs to THIS row, else null (one confirm at a time). */
   armed: ArmedFlip | null;
@@ -106,9 +105,9 @@ function withoutConfirmed(
 /**
  * Release console — the switchboard the show host drives. Everything ships dark;
  * flipping a flag reveals a feature in production (`PUT /flags/:key`) with no redeploy,
- * so each flip is a deploy button: confirm-gated, and gated again by the flags admin key
- * on top of the session JWT. The key is prompted for once, kept in localStorage, and never
- * baked into the bundle.
+ * so each flip is a deploy button: confirm-gated, and authorised off the operator's session
+ * JWT (attached by `apiFetch`). The flags service checks the token's `admin` claim, so a
+ * non-admin operator's flip is rejected with a 403 — there is no separate key to arm.
  */
 export function FlagsPanel({ pollMs = POLL_MS.flags }: Readonly<FlagsPanelProps>) {
   const api = useApi();
@@ -124,12 +123,6 @@ export function FlagsPanel({ pollMs = POLL_MS.flags }: Readonly<FlagsPanelProps>
   const [submitting, setSubmitting] = useState(false);
 
   const disarm = useCallback(() => setArmed(null), []);
-  const gate = useAdminKeyGate({
-    storageKey: STORAGE_KEYS.flagsAdminKey,
-    label: 'flag flips',
-    keyName: 'FLAGS_ADMIN_KEY',
-    onClear: disarm,
-  });
 
   // An override lives from the optimistic flip until the poll confirms it (a successful
   // PUT keeps it, so the switch never flickers back while the refresh is in flight).
@@ -148,7 +141,7 @@ export function FlagsPanel({ pollMs = POLL_MS.flags }: Readonly<FlagsPanelProps>
   }
 
   async function confirmFlip(): Promise<void> {
-    if (!armed || !gate.adminKey) {
+    if (!armed) {
       return;
     }
     const { key, next } = armed;
@@ -161,14 +154,18 @@ export function FlagsPanel({ pollMs = POLL_MS.flags }: Readonly<FlagsPanelProps>
       await sendParsed(
         api,
         `${flagsUrl}/${key}`,
-        { method: 'PUT', body: { enabled: next }, adminKey: gate.adminKey },
+        { method: 'PUT', body: { enabled: next } },
         FeatureFlagSchema
       );
       refresh();
     } catch (err) {
       clearOverride(key);
-      // A rejected admin key (the shipped guard answers 401) is dropped so the prompt returns.
-      setFlipError(gate.rejectionMessage(err) ?? errorMessage(err));
+      if (err instanceof ApiError && err.status === 401) {
+        onAuthError(err); // expired session — back to login, same as a read 401
+        return;
+      }
+      // A 403 means the operator's account is not on the admin allowlist.
+      setFlipError(adminActionError(err));
     } finally {
       setSubmitting(false);
     }
@@ -177,8 +174,7 @@ export function FlagsPanel({ pollMs = POLL_MS.flags }: Readonly<FlagsPanelProps>
   const flags = data ?? [];
 
   return (
-    <Panel title="Release console" meta={{ updatedAt, error }} actions={gate.actionNode}>
-      {gate.promptNode}
+    <Panel title="Release console" meta={{ updatedAt, error }}>
       {flipError && (
         <p className="error-note" role="alert">
           {flipError}
@@ -197,7 +193,7 @@ export function FlagsPanel({ pollMs = POLL_MS.flags }: Readonly<FlagsPanelProps>
               key={flag.key}
               flag={flag}
               enabled={enabled}
-              disabled={!gate.adminKey || submitting}
+              disabled={submitting}
               armed={rowArmed}
               onArm={() => setArmed({ key: flag.key, next: !enabled })}
               onConfirm={confirmFlip}

@@ -36,8 +36,10 @@ services:
       # Auth (pre-built): passwordless email + OTP → session tokens
       - key: SESSION_SECRET # HMAC key for signing session tokens (shared via @arena/service-auth)
         sync: false
-      - key: BETTING_ADMIN_KEY # guards bot provisioning + settlement
-        sync: false
+      - key: ADMIN_EMAILS # allowlist stamped as the `admin` claim at login (identity-based admin)
+        value: marcio.sete@gmail.com
+      - key: PRICING_URL # bet-time price check → pricing
+        value: https://pricing.hackathon.beer
       - key: RESEND_API_KEY # transactional email (OTP codes)
         sync: false
       - key: RESEND_FROM # verified sender, e.g. hello@mail.hackathon.beer
@@ -54,8 +56,14 @@ services:
     envVars:
       - key: NODE_VERSION
         value: '22'
-      - key: SIMULATOR_ADMIN_KEY
+      # Mints admin service tokens (signToken('simulator',{admin:true})) to reprice/settle/reset.
+      - key: SESSION_SECRET
         sync: false
+      # The finale + Reset-bracket cascade fan out to these (localhost fallback is dev-only).
+      - key: PRICING_URL
+        value: https://pricing.hackathon.beer
+      - key: BETTING_URL
+        value: https://betting.hackathon.beer
 
   - type: web
     name: arena-flags
@@ -70,5 +78,6 @@ services:
         value: '22'
       - key: FLAGS_DATABASE_URL
         sync: false
-      - key: FLAGS_ADMIN_KEY
+      # Verifies session tokens (incl. the admin claim on PUT /flags/:key).
+      - key: SESSION_SECRET
         sync: false

@@ -66,6 +66,14 @@ export class InMemoryMarketsRepository extends MarketsRepository {
     return Promise.resolve();
   }
 
+  // Mirrors the Prisma deleteMany-everything: no row survives an admin reset.
+  clearAll(): Promise<void> {
+    this.markets.clear();
+    this.fixtures.clear();
+    this.events.length = 0;
+    return Promise.resolve();
+  }
+
   // Async so validation failures reject, like a failed Prisma transaction.
   async applyReprice(update: RepriceUpdate): Promise<void> {
     // Validate everything first so a failure leaves no partial writes —

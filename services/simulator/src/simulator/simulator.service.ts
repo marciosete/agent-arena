@@ -29,15 +29,36 @@ export class SimulatorService {
     return this.state;
   }
 
-  reset(): SimState {
-    // Invalidate the era: a live /run loop exits at its next check, and any
-    // in-flight or queued play discards itself instead of settling stale
-    // results against the fresh tournament.
+  /**
+   * THE RESET-BRACKET CASCADE (integration.md): reset the in-memory bracket,
+   * THEN tell pricing and betting to reset too (fresh markets, voided bets,
+   * wallets back to the opening balance). Downstream resets degrade exactly
+   * like the settle chain — a failure logs a warning and is swallowed; a reset
+   * must never throw. Bots self-heal, re-provisioning on their next 401.
+   */
+  async reset(): Promise<SimState> {
+    // Invalidate the era FIRST (synchronously, before any await): a live /run
+    // loop exits at its next check, and any in-flight or queued play discards
+    // itself instead of settling stale results against the fresh tournament.
     this.generation += 1;
     this.activeRunGeneration = null;
     this.rng = createRng(this.resolveSeed());
     this.state = initialSimState();
+    await this.resetDownstream();
     return this.state;
+  }
+
+  private async resetDownstream(): Promise<void> {
+    try {
+      await this.downstream.resetPricing();
+    } catch (error) {
+      this.logger.warn(`degraded: pricing /reset failed during cascade — ${message(error)}`);
+    }
+    try {
+      await this.downstream.resetBetting();
+    } catch (error) {
+      this.logger.warn(`degraded: betting /reset failed during cascade — ${message(error)}`);
+    }
   }
 
   /**

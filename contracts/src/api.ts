@@ -49,12 +49,18 @@ export const TARGET_OVERROUND = 1.05;
 // per-user check on reads (any logged-in caller may read them).
 //   • Humans   → betting /auth (email + OTP) issues the token; the apps attach it
 //                on every call via @arena/web-auth `apiFetch`.
-//   • Bots     → admin-keyed POST /accounts returns a token (bots have no inbox).
-//   • Services → mint a service token with @arena/service-auth `signToken('<svc>')`
-//                (shared SESSION_SECRET) before calling another service.
-// A handful of MUTATIONS need an ADDITIONAL `x-admin-key` on top of the JWT:
-// betting POST /accounts + POST /settle, flags PUT /flags/:key, and every
-// simulator control endpoint (POST /play-next, /run, /reset).
+//   • Bots     → mint an admin token with signToken(name,{admin:true}) (they hold
+//                SESSION_SECRET), call POST /accounts to provision, then bet with
+//                the account token it returns. Bots have no inbox.
+//   • Services → mint a service token with @arena/service-auth
+//                `signToken('<svc>', { admin: true })` before calling another service.
+// ADMIN actions are gated by IDENTITY, not a shared key: the token carries an
+// unforgeable `admin` claim (only a SESSION_SECRET holder can sign one). Betting
+// stamps `admin: true` at login for emails on its ADMIN_EMAILS allowlist; backend
+// service tokens set it too. The shared `AdminGuard` checks the claim — there is
+// NO `x-admin-key` and nothing to enter in the UI. Admin-only mutations: betting
+// POST /accounts + /settle + /reset, pricing POST /reset, flags PUT /flags/:key,
+// and every simulator control endpoint (POST /play-next, /run, /reset).
 
 // ── Shared ─────────────────────────────────────────────────────────────
 
@@ -73,6 +79,8 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 // POST /reprice               → Market[]        🔒 Bearer (body: RepriceRequest; called by the simulator
 //                               with a service token after each result — advances the bracket, reprices,
 //                               and returns the updated markets)
+// POST /reset                 → Market[]        🔒 Bearer (admin) — clears all markets and RE-SEEDS fresh
+//                               OPEN markets from the current FIXTURES seed; part of the Reset-bracket cascade
 
 export const RepriceRequestSchema = z.object({
   settlement: SettlementEventSchema,
@@ -84,13 +92,15 @@ export type RepriceRequest = z.infer<typeof RepriceRequestSchema>;
 // GET  /health                → HealthResponse
 // POST /auth/request-otp      → { ok: true }    (body: RequestOtpRequest) — emails a 6-digit code; always 200 (no account enumeration)
 // POST /auth/verify           → AuthResponse    (body: VerifyOtpRequest) — verifies the code, find-or-create by email, issues a session token
-// POST /accounts              → AuthResponse    🔒 x-admin-key (body: CreateAccountRequest) — bot provisioning (bots have no inbox)
+// POST /accounts              → AuthResponse    🔒 Bearer (admin) (body: CreateAccountRequest) — bot provisioning (bots have no inbox)
 // GET  /accounts/:id          → Account         🔒 Bearer (any logged-in user; balances/nicknames show on the leaderboard)
 // GET  /accounts              → Account[]        🔒 Bearer (leaderboard source)
 // POST /bets                  → Bet             🔒 Bearer (body: PlaceBetRequest; the account is derived from the token, never trusted from the body)
 // GET  /bets?accountId=:id    → Bet[]           🔒 Bearer (a punter's own bets — the my-bets view)
-// POST /settle                → SettleResponse  🔒 Bearer + x-admin-key (body: SettleRequest; called by the
+// POST /settle                → SettleResponse  🔒 Bearer (admin) (body: SettleRequest; called by the
 //                               simulator with a service token after each result)
+// POST /reset                 → ResetResponse   🔒 Bearer (admin) — voids all bets + ledger, deletes bot accounts,
+//                               resets human wallets to OPENING_BALANCE (KEEPS human accounts/logins); Reset-bracket cascade
 // GET  /exposure              → ExposureReport  🔒 Bearer (trader back office — staked + max liability per market)
 //
 // Auth convention: /auth/verify and (admin) /accounts return { token, account }. Send the token
@@ -154,6 +164,14 @@ export const SettleResponseSchema = z.object({
 });
 export type SettleResponse = z.infer<typeof SettleResponseSchema>;
 
+/** Result of betting's admin POST /reset (part of the Reset-bracket cascade). */
+export const ResetResponseSchema = z.object({
+  betsVoided: z.number().int().min(0),
+  botsRemoved: z.number().int().min(0),
+  walletsReset: z.number().int().min(0),
+});
+export type ResetResponse = z.infer<typeof ResetResponseSchema>;
+
 export const ExposureReportSchema = z.object({
   generatedAt: z.string().datetime(),
   markets: z.array(
@@ -182,8 +200,7 @@ export type BetQuery = z.infer<typeof BetQuerySchema>;
 // a flag reveals it in production without a deployment.
 // GET  /health                → HealthResponse
 // GET  /flags                 → FeatureFlag[]  🔒 Bearer (punter feature-gating + trader panel read)
-// PUT  /flags/:key            → FeatureFlag    🔒 Bearer + x-admin-key (body: UpdateFlagRequest;
-//                               the admin key — FLAGS_ADMIN_KEY — is the EXTRA gate on writes)
+// PUT  /flags/:key            → FeatureFlag    🔒 Bearer (admin) (body: UpdateFlagRequest; the release switch)
 
 export const FeatureFlagSchema = z.object({
   key: z.string().min(1),
@@ -211,9 +228,11 @@ export type FlagKey = (typeof FLAG_DEFINITIONS)[number]['key'];
 // ── Simulator service (:4003) ──────────────────────────────────────────
 // GET  /health                → HealthResponse
 // GET  /state                 → SimState        🔒 Bearer (live bracket incl. results — punter bracket + trader feed poll this)
-// POST /play-next             → SimState        🔒 Bearer + x-admin-key (simulate the next unplayed fixture)
-// POST /run                   → SimState        🔒 Bearer + x-admin-key (body: RunRequest; fast-forward to the final)
-// POST /reset                 → SimState        🔒 Bearer + x-admin-key (back to real-world state)
+// POST /play-next             → SimState        🔒 Bearer (admin) (simulate the next unplayed fixture)
+// POST /run                   → SimState        🔒 Bearer (admin) (body: RunRequest; fast-forward to the final)
+// POST /reset                 → SimState        🔒 Bearer (admin) — RESET-BRACKET CASCADE: resets the sim
+//                               bracket, then calls pricing POST /reset + betting POST /reset (fresh markets,
+//                               voided bets, wallets → 10k); bots re-provision on their next 401
 
 export const RunRequestSchema = z.object({
   /** ms pause between simulated fixtures so UIs can animate; 0 = instant */

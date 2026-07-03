@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
-    "@arena/contracts": "*"
+    "@arena/contracts": "*",
+    "@arena/service-auth": "*"
   }
 }
