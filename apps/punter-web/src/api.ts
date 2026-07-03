@@ -20,7 +20,11 @@ import { SERVICE_URLS } from './config';
  * (passed in as `Fetcher`), which attaches the Bearer JWT. `/health` is the one
  * public endpoint and uses plain `fetch`.
  */
-export type Fetcher = (url: string, init?: RequestInit) => Promise<Response>;
+export type Fetcher = (
+  url: string,
+  init?: RequestInit,
+  opts?: { retry?: boolean }
+) => Promise<Response>;
 
 interface SchemaLike<T> {
   safeParse(data: unknown): { success: true; data: T } | { success: false; error: unknown };
@@ -85,11 +89,16 @@ export async function placeBet(
   request: PlaceBetRequest
 ): Promise<PlaceBetResult> {
   try {
-    const response = await fetcher(`${SERVICE_URLS.betting}/bets`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
+    const response = await fetcher(
+      `${SERVICE_URLS.betting}/bets`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      },
+      // Bet placement is idempotent (idempotencyKey) — retry transient cold-start 502s.
+      { retry: true }
+    );
     if (response.status === 409) {
       return { kind: 'price-moved' };
     }

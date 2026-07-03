@@ -165,6 +165,72 @@ describe('apiFetch', () => {
     fireEvent.click(screen.getByText('callAbs'));
     expect(fetchMock.mock.calls.some(([url]) => String(url) === 'http://abs.test/ping')).toBe(true);
   });
+
+  it('retries a transient 502 (cold start) and returns the eventual success', async () => {
+    seedStorage(VALID_TOKEN);
+    let betHits = 0;
+    const fetchMock = vi.fn((input: unknown, _init?: unknown) => {
+      if (String(input) === `${BETTING_URL}/bets`) {
+        betHits += 1;
+        return betHits === 1 ? res({}, { ok: false, status: 502 }) : res({ id: 'bet-1' });
+      }
+      return res({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.session).not.toBeNull());
+
+    let response!: Response;
+    await act(async () => {
+      response = await result.current.apiFetch('/bets', { method: 'POST' }, { retry: true });
+    });
+    expect(response.status).toBe(200);
+    expect(betHits).toBe(2); // retried the 502 once
+  });
+
+  it('does NOT retry an application error like 409 (price moved)', async () => {
+    seedStorage(VALID_TOKEN);
+    let betHits = 0;
+    const fetchMock = vi.fn((input: unknown, _init?: unknown) => {
+      if (String(input) === `${BETTING_URL}/bets`) {
+        betHits += 1;
+        return res({}, { ok: false, status: 409 });
+      }
+      return res({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.session).not.toBeNull());
+
+    let response!: Response;
+    await act(async () => {
+      response = await result.current.apiFetch('/bets', { method: 'POST' }, { retry: true });
+    });
+    expect(response.status).toBe(409);
+    expect(betHits).toBe(1); // no retry — the app answered, fail fast
+  });
+
+  it('retries a thrown network error, then surfaces it if every attempt fails', async () => {
+    seedStorage(VALID_TOKEN);
+    let betHits = 0;
+    const fetchMock = vi.fn((input: unknown, _init?: unknown) => {
+      if (String(input) === `${BETTING_URL}/bets`) {
+        betHits += 1;
+        return Promise.reject(new Error('network down'));
+      }
+      return res({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.session).not.toBeNull());
+
+    await act(async () => {
+      await expect(
+        result.current.apiFetch('/bets', { method: 'POST' }, { retry: true })
+      ).rejects.toThrow(/network down/);
+    });
+    expect(betHits).toBe(3); // initial try + 2 retries, then it gives up
+  });
 });
 
 describe('refreshBalance', () => {

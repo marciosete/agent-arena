@@ -31,9 +31,12 @@ export interface AuthContextValue {
   /**
    * `fetch` that attaches `Authorization: Bearer <token>` whenever a session
    * exists. A path (e.g. `/bets`) is resolved against the betting service; a
-   * fully-qualified URL is used as-is.
+   * fully-qualified URL is used as-is. Pass `{ retry: true }` for one-shot,
+   * idempotent actions (e.g. placing a bet) to transparently retry transient
+   * gateway failures (502/503/504, cold starts). Polling reads should NOT retry
+   * — the next poll recovers — so retry is off by default.
    */
-  apiFetch: (path: string, init?: RequestInit) => Promise<Response>;
+  apiFetch: (path: string, init?: RequestInit, opts?: { retry?: boolean }) => Promise<Response>;
   /** The betting-service base URL this provider was configured with. */
   bettingUrl: string;
 }
@@ -78,6 +81,40 @@ async function postJson(url: string, body: unknown): Promise<Response> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+}
+
+/** Gateway/proxy statuses that mean "not the app's answer, try again" — a Render free-tier
+ * cold start surfaces as one of these (or a thrown network error). */
+const TRANSIENT_STATUS = new Set([502, 503, 504]);
+/** Backoff before each retry, indexed by attempt; its length caps the number of retries. */
+const RETRY_DELAYS_MS = [300, 900];
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/**
+ * `fetch` that transparently retries transient gateway failures (502/503/504 or a thrown
+ * network error) with a short backoff. Safe for every call the apps make: reads are
+ * idempotent, and `POST /bets` carries an `idempotencyKey` — so a retried bet that the
+ * server had already processed returns the original bet, never a double debit. Real
+ * application responses (400/401/409/500/…) are returned immediately, never retried.
+ */
+async function fetchWithRetry(input: string, init: RequestInit, attempt = 0): Promise<Response> {
+  try {
+    const response = await fetch(input, init);
+    if (!TRANSIENT_STATUS.has(response.status) || attempt >= RETRY_DELAYS_MS.length) {
+      return response;
+    }
+  } catch (error) {
+    if (attempt >= RETRY_DELAYS_MS.length) {
+      throw error;
+    }
+  }
+  await sleep(RETRY_DELAYS_MS[attempt]);
+  return fetchWithRetry(input, init, attempt + 1);
 }
 
 export interface AuthProviderProps {
@@ -130,13 +167,16 @@ export function AuthProvider({ bettingUrl, children }: Readonly<AuthProviderProp
   const logout = useCallback(() => applySession(null), [applySession]);
 
   const apiFetch = useCallback(
-    (path: string, init: RequestInit = {}) => {
+    (path: string, init: RequestInit = {}, opts: { retry?: boolean } = {}) => {
       const headers = new Headers(init.headers);
       if (session) {
         headers.set('Authorization', `Bearer ${session.token}`);
       }
       const url = path.startsWith('http') ? path : `${bettingUrl}${path}`;
-      return fetch(url, { ...init, headers });
+      const request = { ...init, headers };
+      // Retry only when the caller opts in (idempotent one-shots like bet placement);
+      // polling reads stay single-shot so an outage surfaces immediately.
+      return opts.retry ? fetchWithRetry(url, request) : fetch(url, request);
     },
     [session, bettingUrl]
   );
