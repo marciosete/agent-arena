@@ -16,3 +16,50 @@ datasource db {
   provider = "postgresql"
   url      = env("PRICING_DATABASE_URL")
 }
+
+// A published market: id == fixtureId for MATCH_WINNER, the literal 'outright'
+// for the OUTRIGHT market (integration.md §3 — market ids are derivable).
+model Market {
+  id         String      @id
+  type       String
+  fixtureId  String?     @unique
+  name       String
+  status     String
+  updatedAt  DateTime    @updatedAt
+  selections Selection[]
+}
+
+// Selection.name MUST equal the represented Team.name — the platform's only
+// bracket↔market join. Ids are deterministic (`marketId:teamId`) so seeding
+// and repricing are idempotent upserts.
+model Selection {
+  id          String @id
+  marketId    String
+  market      Market @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  teamId      String
+  name        String
+  price       Float
+  probability Float
+
+  @@index([marketId])
+}
+
+// Pricing's persisted copy of bracket progression: which teams fill each slot
+// and who won. Survives restarts; static structure (round, feedsInto) stays in
+// the contract FIXTURES.
+model FixtureState {
+  id           String   @id
+  homeTeamId   String?
+  awayTeamId   String?
+  winnerTeamId String?
+  updatedAt    DateTime @updatedAt
+}
+
+// Every reprice is a recorded event: the raw SettlementEvent that drove it.
+model RepriceEvent {
+  id           String   @id @default(uuid())
+  fixtureId    String
+  winnerTeamId String
+  payload      Json
+  createdAt    DateTime @default(now())
+}

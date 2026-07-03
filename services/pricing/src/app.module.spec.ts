@@ -5,6 +5,8 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { HealthResponseSchema } from '@arena/contracts';
 import { AppModule } from './app.module';
+import { MarketsRepository, PrismaMarketsRepository } from './markets/markets.repository';
+import { InMemoryMarketsRepository } from './markets/testing/in-memory-markets.repository';
 
 // A throwaway non-@Public route, mounted alongside the real AppModule, so we can
 // assert the globally-registered JwtAuthGuard actually protects normal routes.
@@ -23,7 +25,11 @@ describe('AppModule (e2e)', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
       controllers: [ProbeController],
-    }).compile();
+    })
+      // Markets seed on init; keep the module test off the real database.
+      .overrideProvider(MarketsRepository)
+      .useValue(new InMemoryMarketsRepository())
+      .compile();
     app = moduleRef.createNestApplication();
     await app.init();
   });
@@ -47,5 +53,13 @@ describe('AppModule (e2e)', () => {
       .get('/__probe')
       .set('Authorization', `Bearer ${signToken('test-account-id')}`);
     expect(response.status).toBe(200);
+  });
+
+  it('resolves the production repository through the real DI graph', async () => {
+    // No override and no init(): proves PrismaMarketsRepository wires up
+    // (PrismaService via the global PrismaModule) without touching the DB.
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const repository = moduleRef.get(MarketsRepository, { strict: false });
+    expect(repository).toBeInstanceOf(PrismaMarketsRepository);
   });
 });
