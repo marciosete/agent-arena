@@ -3,7 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { signToken } from '@arena/service-auth';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { HealthResponseSchema, SimStateSchema } from '@arena/contracts';
+import { FIXTURES, HealthResponseSchema, SimStateSchema } from '@arena/contracts';
 import { AppModule } from './app.module';
 import { DownstreamClient } from './simulator/downstream.client';
 import { SimulatorService } from './simulator/simulator.service';
@@ -112,12 +112,15 @@ describe('AppModule (e2e)', () => {
     });
 
     it('play-next plays a fixture and GET /state exposes the live bracket', async () => {
+      // The seed already records the real R32-9..12 results; the first fixture
+      // the simulator itself plays is R32-15 (SUI v ALG, earliest unplayed).
+      const seedPlayed = FIXTURES.filter((f) => f.status === 'finished').map((f) => f.id);
       const played = await request(app.getHttpServer())
         .post('/play-next')
         .set(AUTH_HEADER, BEARER)
         .set(ADMIN_HEADER, ADMIN_KEY)
         .expect(201);
-      expect(SimStateSchema.parse(played.body).playedFixtureIds).toEqual(['R32-9']);
+      expect(SimStateSchema.parse(played.body).playedFixtureIds).toEqual([...seedPlayed, 'R32-15']);
 
       const response = await request(app.getHttpServer())
         .get('/state')
@@ -126,13 +129,13 @@ describe('AppModule (e2e)', () => {
       const state = SimStateSchema.parse(response.body);
 
       // The played fixture carries the result...
-      const fixture = state.fixtures.find((f) => f.id === 'R32-9');
+      const fixture = state.fixtures.find((f) => f.id === 'R32-15');
       expect(fixture?.status).toBe('finished');
       expect(fixture?.homeScore).not.toBeNull();
       expect(fixture?.awayScore).not.toBeNull();
       expect(fixture?.winnerTeamId).not.toBeNull();
-      // ...and its winner advanced into the next fixture's slot (R32-9 → R16-5 home).
-      const next = state.fixtures.find((f) => f.id === 'R16-5');
+      // ...and its winner advanced into the next fixture's slot (R32-15 → R16-8 home).
+      const next = state.fixtures.find((f) => f.id === 'R16-8');
       expect(next?.homeTeamId).toBe(fixture?.winnerTeamId);
 
       // The finale chain fanned out: reprice then settle.
@@ -176,8 +179,12 @@ describe('AppModule (e2e)', () => {
         .expect(201);
       const state = SimStateSchema.parse(response.body);
       expect(state.champion).toBeNull();
-      expect(state.playedFixtureIds).toEqual([]);
-      expect(state.fixtures.find((f) => f.id === 'R32-9')?.status).toBe('scheduled');
+      // Reset returns to the SEED, which includes the real results already played.
+      expect(state.playedFixtureIds).toEqual(
+        FIXTURES.filter((f) => f.status === 'finished').map((f) => f.id)
+      );
+      expect(state.fixtures.find((f) => f.id === 'R32-15')?.status).toBe('scheduled');
+      expect(state.fixtures.find((f) => f.id === 'R32-9')?.status).toBe('finished');
     });
   });
 });

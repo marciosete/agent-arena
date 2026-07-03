@@ -7,10 +7,10 @@
     "awayTeamId": "CRO",
     "feedsInto": "R16-5",
     "feedsIntoSlot": "home",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
-    "winnerTeamId": null
+    "status": "finished",
+    "homeScore": 2,
+    "awayScore": 1,
+    "winnerTeamId": "POR"
   },
   {
     "id": "R32-10",
@@ -20,10 +20,10 @@
     "awayTeamId": "AUT",
     "feedsInto": "R16-5",
     "feedsIntoSlot": "away",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
-    "winnerTeamId": null
+    "status": "finished",
+    "homeScore": 3,
+    "awayScore": 0,
+    "winnerTeamId": "ESP"
   },
   {
     "id": "R32-11",
@@ -33,10 +33,10 @@
     "awayTeamId": "BIH",
     "feedsInto": "R16-6",
     "feedsIntoSlot": "home",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
-    "winnerTeamId": null
+    "status": "finished",
+    "homeScore": 2,
+    "awayScore": 0,
+    "winnerTeamId": "USA"
   },
   {
     "id": "R32-12",
@@ -46,15 +46,15 @@
     "awayTeamId": "SEN",
     "feedsInto": "R16-6",
     "feedsIntoSlot": "away",
-    "status": "scheduled",
-    "homeScore": null,
-    "awayScore": null,
-    "winnerTeamId": null
+    "status": "finished",
+    "homeScore": 3,
+    "awayScore": 2,
+    "winnerTeamId": "BEL"
   },
   {
     "id": "R32-13",
     "round": "R32",
-    "kickoff": "2026-07-03T16:00:00Z",
+    "kickoff": "2026-07-03T22:00:00Z",
     "homeTeamId": "ARG",
     "awayTeamId": "CPV",
     "feedsInto": "R16-7",
@@ -67,7 +67,7 @@
   {
     "id": "R32-14",
     "round": "R32",
-    "kickoff": "2026-07-03T19:00:00Z",
+    "kickoff": "2026-07-03T18:00:00Z",
     "homeTeamId": "AUS",
     "awayTeamId": "EGY",
     "feedsInto": "R16-7",
@@ -80,7 +80,7 @@
   {
     "id": "R32-15",
     "round": "R32",
-    "kickoff": "2026-07-03T22:00:00Z",
+    "kickoff": "2026-07-03T03:00:00Z",
     "homeTeamId": "SUI",
     "awayTeamId": "ALG",
     "feedsInto": "R16-8",
@@ -93,7 +93,7 @@
   {
     "id": "R32-16",
     "round": "R32",
-    "kickoff": "2026-07-04T00:00:00Z",
+    "kickoff": "2026-07-04T01:30:00Z",
     "homeTeamId": "COL",
     "awayTeamId": "GHA",
     "feedsInto": "R16-8",
@@ -159,8 +159,8 @@
     "id": "R16-5",
     "round": "R16",
     "kickoff": "2026-07-06T19:00:00Z",
-    "homeTeamId": null,
-    "awayTeamId": null,
+    "homeTeamId": "POR",
+    "awayTeamId": "ESP",
     "feedsInto": "QF-3",
     "feedsIntoSlot": "home",
     "status": "scheduled",
@@ -172,8 +172,8 @@
     "id": "R16-6",
     "round": "R16",
     "kickoff": "2026-07-07T00:00:00Z",
-    "homeTeamId": null,
-    "awayTeamId": null,
+    "homeTeamId": "USA",
+    "awayTeamId": "BEL",
     "feedsInto": "QF-3",
     "feedsIntoSlot": "away",
     "status": "scheduled",

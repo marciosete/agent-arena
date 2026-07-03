@@ -18,7 +18,10 @@ import {
 } from './engine';
 
 const SETTLED_AT = '2026-07-03T12:00:00.000Z';
-const FIRST_KICKOFF_ID = 'R32-9'; // POR v CRO, earliest kickoff in the seed
+// The seed now records the real results already played (R32-9..12, 3 July).
+const FIRST_UNPLAYED_ID = 'R32-15'; // SUI v ALG — earliest kickoff still unplayed
+const SECOND_UNPLAYED_ID = 'R32-14'; // AUS v EGY
+const SEED_UNPLAYED_COUNT = FIXTURES.filter((f) => f.status !== 'finished').length;
 
 function playAll(seed: number): { state: SimState; settlements: SettlementEvent[] } {
   const rng = createRng(seed);
@@ -48,22 +51,22 @@ describe('winProbabilityHome', () => {
 });
 
 describe('simulateResult', () => {
-  const porVsCro = fixtureById(FIRST_KICKOFF_ID) as Fixture;
+  const suiVsAlg = fixtureById(FIRST_UNPLAYED_ID) as Fixture;
 
   it('is deterministic under a fixed seed', () => {
-    const resultA = simulateResult(porVsCro, createRng(1234));
-    const resultB = simulateResult(porVsCro, createRng(1234));
+    const resultA = simulateResult(suiVsAlg, createRng(1234));
+    const resultB = simulateResult(suiVsAlg, createRng(1234));
     expect(resultA).toEqual(resultB);
   });
 
   it('always keeps the scoreline consistent with the drawn winner', () => {
     for (let seed = 0; seed < 300; seed += 1) {
-      const result = simulateResult(porVsCro, createRng(seed));
-      const winnerIsHome = result.winnerTeamId === porVsCro.homeTeamId;
+      const result = simulateResult(suiVsAlg, createRng(seed));
+      const winnerIsHome = result.winnerTeamId === suiVsAlg.homeTeamId;
       const winnerScore = winnerIsHome ? result.homeScore : result.awayScore;
       const loserScore = winnerIsHome ? result.awayScore : result.homeScore;
 
-      expect([porVsCro.homeTeamId, porVsCro.awayTeamId]).toContain(result.winnerTeamId);
+      expect([suiVsAlg.homeTeamId, suiVsAlg.awayTeamId]).toContain(result.winnerTeamId);
       expect(Number.isInteger(result.homeScore)).toBe(true);
       expect(Number.isInteger(result.awayScore)).toBe(true);
       expect(winnerScore).toBeGreaterThanOrEqual(loserScore);
@@ -76,7 +79,7 @@ describe('simulateResult', () => {
   it('covers both regulation and penalty outcomes across seeds', () => {
     const outcomes = new Set<boolean>();
     for (let seed = 0; seed < 300; seed += 1) {
-      outcomes.add(simulateResult(porVsCro, createRng(seed)).decidedOnPenalties);
+      outcomes.add(simulateResult(suiVsAlg, createRng(seed)).decidedOnPenalties);
     }
     expect(outcomes).toEqual(new Set([true, false]));
   });
@@ -102,14 +105,14 @@ describe('simulateResult', () => {
 describe('nextUnplayedFixture', () => {
   it('picks the earliest kickoff among unfinished fixtures regardless of array order', () => {
     const fixtures = [...initialSimState().fixtures].reverse();
-    expect(nextUnplayedFixture(fixtures)?.id).toBe(FIRST_KICKOFF_ID);
+    expect(nextUnplayedFixture(fixtures)?.id).toBe(FIRST_UNPLAYED_ID);
   });
 
   it('skips finished fixtures', () => {
     const fixtures = initialSimState().fixtures.map((fixture) =>
-      fixture.id === FIRST_KICKOFF_ID ? { ...fixture, status: 'finished' as const } : fixture
+      fixture.id === FIRST_UNPLAYED_ID ? { ...fixture, status: 'finished' as const } : fixture
     );
-    expect(nextUnplayedFixture(fixtures)?.id).toBe('R32-10');
+    expect(nextUnplayedFixture(fixtures)?.id).toBe(SECOND_UNPLAYED_ID);
   });
 
   it('returns undefined once everything is played', () => {
@@ -126,14 +129,14 @@ describe('playNextFixture', () => {
     const outcome = playNextFixture(initialSimState(), createRng(9), SETTLED_AT);
     expect(outcome).not.toBeNull();
 
-    const played = outcome?.state.fixtures.find((f) => f.id === FIRST_KICKOFF_ID);
+    const played = outcome?.state.fixtures.find((f) => f.id === FIRST_UNPLAYED_ID);
     expect(played?.status).toBe('finished');
     expect(played?.winnerTeamId).toBe(outcome?.settlement.winnerTeamId);
     expect(played?.homeScore).toBe(outcome?.settlement.homeScore);
     expect(played?.awayScore).toBe(outcome?.settlement.awayScore);
 
-    // R32-9 feeds the HOME slot of R16-5.
-    const next = outcome?.state.fixtures.find((f) => f.id === 'R16-5');
+    // R32-15 feeds the HOME slot of R16-8 (away stays open: R32-16 is unplayed).
+    const next = outcome?.state.fixtures.find((f) => f.id === 'R16-8');
     expect(next?.homeTeamId).toBe(outcome?.settlement.winnerTeamId);
     expect(next?.awayTeamId).toBeNull();
   });
@@ -148,14 +151,14 @@ describe('playNextFixture', () => {
   it('emits a schema-valid SettlementEvent for the played fixture', () => {
     const outcome = playNextFixture(initialSimState(), createRng(11), SETTLED_AT);
     const settlement = SettlementEventSchema.parse(outcome?.settlement);
-    expect(settlement.fixtureId).toBe(FIRST_KICKOFF_ID);
+    expect(settlement.fixtureId).toBe(FIRST_UNPLAYED_ID);
     expect(settlement.settledAt).toBe(SETTLED_AT);
   });
 
   it('advances every winner into the correct slot of the correct fixture, all the way to the final', () => {
     const { state, settlements } = playAll(2026);
 
-    expect(settlements).toHaveLength(FIXTURES.length);
+    expect(settlements).toHaveLength(SEED_UNPLAYED_COUNT);
     expect(state.playedFixtureIds).toHaveLength(FIXTURES.length);
     expect(state.remainingFixtureIds).toEqual([]);
     SimStateSchema.parse(state);

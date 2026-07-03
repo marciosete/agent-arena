@@ -19,6 +19,13 @@ import { FakeDownstream, SETTLE_OK } from './testing/fake-downstream';
 import { jsonResponse } from './testing/http';
 import { matchWinnerMarket, outrightMarket } from './testing/markets';
 
+// The seed records the real results already played (R32-9..12 as of 3 July).
+// Derive the boot state from the data so these tests track reality as it lands.
+const SEED_PLAYED = FIXTURES.filter((f) => f.status === 'finished').map((f) => f.id);
+const SEED_UNPLAYED_COUNT = FIXTURES.length - SEED_PLAYED.length;
+const FIRST_UNPLAYED_ID = 'R32-15'; // SUI v ALG — earliest kickoff still unplayed
+const SECOND_UNPLAYED_ID = 'R32-14'; // AUS v EGY
+
 function makeService(): { service: SimulatorService; downstream: FakeDownstream } {
   // The provider closure runs only after construction, so the forward
   // reference to `service` is safe.
@@ -42,19 +49,19 @@ describe('SimulatorService', () => {
     delete process.env.SIM_SEED;
   });
 
-  it('starts from the real-world bracket with every fixture unplayed', () => {
+  it('starts from the real-world bracket with the already-played results recorded', () => {
     const state = SimStateSchema.parse(makeService().service.getState());
     expect(state.champion).toBeNull();
-    expect(state.playedFixtureIds).toEqual([]);
-    expect(state.remainingFixtureIds).toHaveLength(FIXTURES.length);
+    expect(state.playedFixtureIds).toEqual(SEED_PLAYED);
+    expect(state.remainingFixtureIds).toHaveLength(SEED_UNPLAYED_COUNT);
   });
 
   it('returns to the initial state on reset', async () => {
     const { service } = makeService();
     await service.playNext();
     const state = SimStateSchema.parse(service.reset());
-    expect(state.playedFixtureIds).toEqual([]);
-    expect(state.remainingFixtureIds).toHaveLength(FIXTURES.length);
+    expect(state.playedFixtureIds).toEqual(SEED_PLAYED);
+    expect(state.remainingFixtureIds).toHaveLength(SEED_UNPLAYED_COUNT);
   });
 
   describe('playNext — the finale chain', () => {
@@ -62,10 +69,10 @@ describe('SimulatorService', () => {
       const { service, downstream } = makeService();
       const state = await service.playNext();
 
-      expect(state.playedFixtureIds).toEqual(['R32-9']);
+      expect(state.playedFixtureIds).toEqual([...SEED_PLAYED, FIRST_UNPLAYED_ID]);
       expect(downstream.callOrder).toEqual(['reprice', 'settle']);
       const settlement = SettlementEventSchema.parse(downstream.repriceCalls[0]);
-      expect(settlement.fixtureId).toBe('R32-9');
+      expect(settlement.fixtureId).toBe(FIRST_UNPLAYED_ID);
       expect(downstream.settleCalls[0]?.settlement).toEqual(settlement);
     });
 
@@ -101,7 +108,7 @@ describe('SimulatorService', () => {
       const { service, downstream } = makeService();
       const state = await playAll(service);
 
-      expect(downstream.repriceCalls).toHaveLength(FIXTURES.length);
+      expect(downstream.repriceCalls).toHaveLength(SEED_UNPLAYED_COUNT);
       const finalSettle = downstream.settleCalls.at(-1);
       expect(finalSettle?.settlement.fixtureId).toBe('F-1');
       expect(state.champion).toBe(finalSettle?.settlement.winnerTeamId);
@@ -122,8 +129,8 @@ describe('SimulatorService', () => {
 
       const state = await service.playNext();
 
-      expect(state.playedFixtureIds).toEqual(['R32-9']);
-      expect(state.fixtures.find((f) => f.id === 'R32-9')?.status).toBe('finished');
+      expect(state.playedFixtureIds).toEqual([...SEED_PLAYED, FIRST_UNPLAYED_ID]);
+      expect(state.fixtures.find((f) => f.id === FIRST_UNPLAYED_ID)?.status).toBe('finished');
       expect(downstream.settleCalls).toEqual([]);
     });
 
@@ -133,12 +140,17 @@ describe('SimulatorService', () => {
 
       const state = await service.playNext();
 
-      expect(state.playedFixtureIds).toEqual(['R32-9']);
+      expect(state.playedFixtureIds).toEqual([...SEED_PLAYED, FIRST_UNPLAYED_ID]);
       expect(downstream.callOrder).toEqual(['reprice', 'settle']);
       // ...and the next fixture still plays normally afterwards.
       downstream.failSettle = false;
       const next = await service.playNext();
-      expect(next.playedFixtureIds).toEqual(['R32-9', 'R32-10']);
+      // playedFixtureIds lists in seed-array order (R32-14 precedes R32-15 there).
+      expect(next.playedFixtureIds).toEqual([
+        ...SEED_PLAYED,
+        SECOND_UNPLAYED_ID,
+        FIRST_UNPLAYED_ID,
+      ]);
     });
 
     it('serializes overlapping calls so settlements reach pricing in bracket order', async () => {
@@ -148,8 +160,16 @@ describe('SimulatorService', () => {
 
       // Never reprice,reprice,…: the second play waits out the first fan-out.
       expect(downstream.callOrder).toEqual(['reprice', 'settle', 'reprice', 'settle']);
-      expect(downstream.repriceCalls.map((s) => s.fixtureId)).toEqual(['R32-9', 'R32-10']);
-      expect(second.playedFixtureIds).toEqual(['R32-9', 'R32-10']);
+      expect(downstream.repriceCalls.map((s) => s.fixtureId)).toEqual([
+        FIRST_UNPLAYED_ID,
+        SECOND_UNPLAYED_ID,
+      ]);
+      // playedFixtureIds lists in seed-array order (R32-14 precedes R32-15 there).
+      expect(second.playedFixtureIds).toEqual([
+        ...SEED_PLAYED,
+        SECOND_UNPLAYED_ID,
+        FIRST_UNPLAYED_ID,
+      ]);
     });
 
     it('discards an in-flight settlement when reset lands mid-reprice', async () => {
@@ -169,10 +189,10 @@ describe('SimulatorService', () => {
       await pending;
 
       // The stale result was repriced but never settled against the fresh bracket…
-      expect(downstream.repriceCalls.map((s) => s.fixtureId)).toEqual(['R32-9']);
+      expect(downstream.repriceCalls.map((s) => s.fixtureId)).toEqual([FIRST_UNPLAYED_ID]);
       expect(downstream.settleCalls).toEqual([]);
       // …and the fresh bracket is untouched.
-      expect(service.getState().playedFixtureIds).toEqual([]);
+      expect(service.getState().playedFixtureIds).toEqual(SEED_PLAYED);
     });
 
     it('drops a queued play when a reset lands before it dequeues', async () => {
@@ -191,9 +211,9 @@ describe('SimulatorService', () => {
       release();
       await Promise.all([first, queued]);
 
-      expect(downstream.repriceCalls.map((s) => s.fixtureId)).toEqual(['R32-9']);
+      expect(downstream.repriceCalls.map((s) => s.fixtureId)).toEqual([FIRST_UNPLAYED_ID]);
       expect(downstream.settleCalls).toEqual([]);
-      expect(service.getState().playedFixtureIds).toEqual([]);
+      expect(service.getState().playedFixtureIds).toEqual(SEED_PLAYED);
     });
 
     it('skips settle when no selection matches the winner by name', async () => {
@@ -207,7 +227,7 @@ describe('SimulatorService', () => {
 
       const state = await service.playNext();
 
-      expect(state.playedFixtureIds).toEqual(['R32-9']);
+      expect(state.playedFixtureIds).toEqual([...SEED_PLAYED, FIRST_UNPLAYED_ID]);
       expect(downstream.settleCalls).toEqual([]);
     });
   });
@@ -222,7 +242,7 @@ describe('SimulatorService', () => {
         expect(service.getState().champion).not.toBeNull();
       });
       expect(service.getState().remainingFixtureIds).toEqual([]);
-      expect(downstream.repriceCalls).toHaveLength(FIXTURES.length);
+      expect(downstream.repriceCalls).toHaveLength(SEED_UNPLAYED_COUNT);
     });
 
     it('ignores a second run while one is in flight (no double-playing)', async () => {
@@ -233,7 +253,7 @@ describe('SimulatorService', () => {
       await vi.waitFor(() => {
         expect(service.getState().remainingFixtureIds).toEqual([]);
       });
-      expect(downstream.repriceCalls).toHaveLength(FIXTURES.length);
+      expect(downstream.repriceCalls).toHaveLength(SEED_UNPLAYED_COUNT);
     });
 
     it('paces fixtures by intervalMs', async () => {
@@ -259,8 +279,8 @@ describe('SimulatorService', () => {
       await vi.advanceTimersByTimeAsync(60_000);
 
       expect(downstream.repriceCalls).toHaveLength(1);
-      expect(service.getState().playedFixtureIds).toEqual([]);
-      expect(service.getState().remainingFixtureIds).toHaveLength(FIXTURES.length);
+      expect(service.getState().playedFixtureIds).toEqual(SEED_PLAYED);
+      expect(service.getState().remainingFixtureIds).toHaveLength(SEED_UNPLAYED_COUNT);
     });
 
     it('logs and recovers when the run loop itself crashes', async () => {
@@ -278,7 +298,7 @@ describe('SimulatorService', () => {
       await vi.waitFor(() => {
         expect(service.getState().champion).not.toBeNull();
       });
-      expect(downstream.repriceCalls).toHaveLength(FIXTURES.length);
+      expect(downstream.repriceCalls).toHaveLength(SEED_UNPLAYED_COUNT);
     });
 
     it('does nothing when the tournament is already complete', async () => {
@@ -287,7 +307,7 @@ describe('SimulatorService', () => {
 
       const state = service.run(0);
       await vi.waitFor(() => {
-        expect(downstream.repriceCalls).toHaveLength(FIXTURES.length);
+        expect(downstream.repriceCalls).toHaveLength(SEED_UNPLAYED_COUNT);
       });
       expect(state.remainingFixtureIds).toEqual([]);
     });
@@ -301,7 +321,7 @@ describe('SimulatorService', () => {
       const { service } = makeService();
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('SIM_SEED'));
-      expect(service.getState().remainingFixtureIds).toHaveLength(FIXTURES.length);
+      expect(service.getState().remainingFixtureIds).toHaveLength(SEED_UNPLAYED_COUNT);
       warn.mockRestore();
     });
 
@@ -325,10 +345,10 @@ describe('SimulatorService', () => {
         urls.push(String(url));
         if (String(url).endsWith('/reprice')) {
           const request = RepriceRequestSchema.parse(JSON.parse(String(init.body)));
-          expect(request.settlement.fixtureId).toBe('R32-9');
+          expect(request.settlement.fixtureId).toBe(FIRST_UNPLAYED_ID);
           return Promise.resolve(
             jsonResponse([
-              matchWinnerMarket('R32-9', 'POR', 'CRO'),
+              matchWinnerMarket(FIRST_UNPLAYED_ID, 'SUI', 'ALG'),
               outrightMarket(TEAMS.map((team) => team.id)),
             ])
           );
@@ -341,7 +361,7 @@ describe('SimulatorService', () => {
       const state = await service.playNext();
 
       expect(urls).toEqual([`${BASE_URLS.pricing}/reprice`, `${BASE_URLS.betting}/settle`]);
-      expect(state.playedFixtureIds).toEqual(['R32-9']);
+      expect(state.playedFixtureIds).toEqual([...SEED_PLAYED, FIRST_UNPLAYED_ID]);
 
       const [, settleInit] = fetchMock.mock.calls[1] as [string, RequestInit];
       const settleRequest = SettleRequestSchema.parse(JSON.parse(String(settleInit.body)));
@@ -355,8 +375,8 @@ describe('SimulatorService', () => {
       const service = new SimulatorService(new DownstreamClient());
       const state = await service.playNext();
 
-      expect(state.playedFixtureIds).toEqual(['R32-9']);
-      expect(state.fixtures.find((f) => f.id === 'R32-9')?.winnerTeamId).not.toBeNull();
+      expect(state.playedFixtureIds).toEqual([...SEED_PLAYED, FIRST_UNPLAYED_ID]);
+      expect(state.fixtures.find((f) => f.id === FIRST_UNPLAYED_ID)?.winnerTeamId).not.toBeNull();
     });
   });
 });
