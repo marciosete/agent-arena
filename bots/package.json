@@ -2,7 +2,6 @@
   "name": "@arena/bots",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "description": "Autonomous punter agents that research, price and bet into the Arena markets.",
   "scripts": {
     "dev": "tsx src/index.ts",

@@ -1,7 +1,23 @@
 /**
- * Bot roster entrypoint — the punter agents are built live during the event.
- * Each bot gets a personality (sharp, mug, arb hunter), an account at the
- * betting service, and a loop: observe markets → estimate → stake → bet.
+ * Bot roster entrypoint — `npm run dev -w bots`.
+ * Agents built by an agent: four punters provision their own accounts and
+ * bet into the platform. Config via env: PRICING_URL, BETTING_URL,
+ * BETTING_ADMIN_KEY, BOTS_ROUND_INTERVAL_MS (see src/config.ts).
  */
+import { loadConfig } from './config';
+import { runRoster } from './runner';
 
-console.log('🤖 Agent Arena bots: no bots on the roster yet. Build them live.');
+// Pick up a local .env (bots/.env or the repo root's) without overriding
+// anything already set in the environment.
+for (const envFile of ['.env', '../.env']) {
+  try {
+    process.loadEnvFile(envFile);
+  } catch {
+    // optional file — ambient environment wins
+  }
+}
+
+runRoster({ config: loadConfig() }).catch((error: unknown) => {
+  console.error('💥 the roster crashed:', error);
+  process.exitCode = 1;
+});
