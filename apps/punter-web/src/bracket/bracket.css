@@ -1,0 +1,487 @@
+/* ── The arena ─────────────────────────────────────────────────────── */
+
+.bracket-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.2rem 0 2rem;
+  background:
+    radial-gradient(closest-side at 50% 46%, rgba(212, 175, 55, 0.07), transparent 62%),
+    radial-gradient(circle at 50% 120%, rgba(20, 22, 40, 0.9), transparent 55%);
+}
+
+.bracket-wrap {
+  /* Dominates the screen but always fits whole below the sticky header —
+     the rim labels are inside the padded viewBox, so nothing ever clips. */
+  position: relative;
+  width: min(92vw, calc(100svh - 150px));
+  aspect-ratio: 1;
+}
+
+.bracket {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.bracket-backdrop {
+  fill: transparent;
+}
+
+/* ── Round labels (the key art has no guide circles) ───────────────── */
+
+.ring-label {
+  fill: #4d4f60;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-anchor: middle;
+}
+
+/* ── Paths (edges) ─────────────────────────────────────────────────── */
+
+.edge {
+  fill: none;
+  stroke-linecap: round;
+  transition:
+    stroke 0.6s ease,
+    opacity 0.25s ease;
+}
+
+.edge-open {
+  stroke: #262838;
+  stroke-width: 1.6;
+}
+
+.edge-lost {
+  stroke: #14151d;
+  stroke-width: 1.4;
+}
+
+/* A won path: beads in the winner's colour flowing toward the trophy. */
+.edge-won {
+  stroke: var(--team-color, var(--gold));
+  stroke-width: 3.4;
+  stroke-dasharray: 0.6 7.4;
+  filter: drop-shadow(0 0 5px var(--team-color, rgba(212, 175, 55, 0.75)));
+  animation:
+    edge-ignite 0.7s ease-out both,
+    edge-flow 2.4s linear infinite;
+  animation-delay: var(--ring-delay, 0s), 0s;
+}
+
+.edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 20;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.edge-open.is-lit {
+  stroke: #9a9cb8;
+  stroke-width: 2.6;
+}
+
+.edge-won.is-lit {
+  stroke-width: 4.4;
+  filter: drop-shadow(0 0 9px var(--team-color, rgba(212, 175, 55, 0.9))) brightness(1.35);
+}
+
+/* Already-through entries: the rim→ring hop and its echo node are decorative. */
+.node-echo,
+.entry-hop {
+  pointer-events: none;
+}
+
+/* Junction dots at the elbows — the constellation joints of the key art. */
+.edge-joint {
+  fill: #33343f;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.joint-won {
+  fill: var(--team-color, var(--gold));
+  filter: drop-shadow(0 0 4px var(--team-color, rgba(212, 175, 55, 0.7)));
+}
+
+.joint-lost {
+  fill: #1c1d26;
+}
+
+/* ── Slots & nodes ─────────────────────────────────────────────────── */
+
+.slot-dot {
+  fill: #2c2d3a;
+  cursor: pointer;
+  transition: opacity 0.25s ease;
+}
+
+.node {
+  cursor: pointer;
+  transition:
+    opacity 0.25s ease,
+    filter 0.4s ease;
+}
+
+.node-face {
+  fill: #0d0e17;
+  stroke: #34364a;
+  stroke-width: 1.5;
+  transition: stroke 0.3s ease;
+}
+
+.node-flag {
+  text-anchor: middle;
+  dominant-baseline: central;
+  user-select: none;
+}
+
+/* A slot won into: the winner arrives lit. */
+.node-advanced {
+  animation: node-pop 0.55s var(--ring-delay, 0s) both;
+}
+
+.node-advanced .node-face {
+  stroke: var(--team-color, var(--gold));
+  stroke-width: 2;
+  filter: drop-shadow(0 0 5px var(--team-color, rgba(212, 175, 55, 0.55)));
+}
+
+.node-out {
+  opacity: 0.32;
+  filter: saturate(0.15);
+}
+
+.node.is-lit .node-face {
+  stroke: var(--gold-pale);
+  stroke-width: 2.6;
+}
+
+.is-faded {
+  opacity: 0.14;
+}
+
+/* Keyboard parity: the SVG "buttons" show the same emphasis as hover. */
+.bracket [role='button']:focus {
+  outline: none;
+}
+
+.bracket [role='button']:focus-visible {
+  outline: 2px solid var(--gold-pale);
+  outline-offset: 3px;
+}
+
+.rim-label {
+  fill: var(--muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-anchor: middle;
+  dominant-baseline: central;
+  user-select: none;
+  pointer-events: none;
+}
+
+.node.is-lit .rim-label {
+  fill: var(--gold-pale);
+}
+
+.score-chip {
+  fill: var(--gold-bright);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  paint-order: stroke;
+  stroke: #05060c;
+  stroke-width: 5px;
+  animation: fade-in 0.6s ease both;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .rim-label {
+    font-size: 18px;
+  }
+
+  .score-chip {
+    font-size: 17px;
+  }
+}
+
+/* ── Trophy ────────────────────────────────────────────────────────── */
+
+.trophy-halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: trophy-pulse 3s ease-in-out infinite alternate;
+}
+
+.trophy-core {
+  fill: #0b0c14;
+  stroke: rgba(212, 175, 55, 0.45);
+  stroke-width: 1.5;
+}
+
+.trophy-cup {
+  font-size: 50px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  filter: drop-shadow(0 0 14px rgba(243, 217, 122, 0.65));
+  user-select: none;
+}
+
+.trophy-clickable {
+  cursor: pointer;
+}
+
+.trophy-crowned .trophy-halo {
+  animation-duration: 1.6s;
+}
+
+.champion {
+  animation: node-pop 0.9s 0.2s both;
+}
+
+.champion-ring {
+  fill: #0b0c14;
+  stroke: var(--gold-bright);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 12px rgba(243, 217, 122, 0.8));
+}
+
+.champion-flag {
+  font-size: 24px;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.champion-name {
+  fill: var(--gold-bright);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-anchor: middle;
+  filter: drop-shadow(0 0 8px rgba(243, 217, 122, 0.5));
+}
+
+/* ── Tooltip & cards ───────────────────────────────────────────────── */
+
+.bracket-tip {
+  position: absolute;
+  transform: translate(-50%, -150%);
+  background: rgba(8, 9, 14, 0.95);
+  border: 1px solid #2a2b38;
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.bracket-tip em {
+  color: var(--gold-bright);
+  font-style: normal;
+  margin-left: 0.3rem;
+}
+
+.bracket-card {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 260px;
+  background: rgba(10, 11, 18, 0.94);
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  border-radius: 14px;
+  padding: 0.85rem 1rem 0.9rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  z-index: 4;
+  animation: fade-in 0.18s ease-out;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+}
+
+.card-round {
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.card-close {
+  background: none;
+  border: none;
+  color: var(--dim);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.1rem 0.3rem;
+}
+
+.card-close:hover {
+  color: var(--text);
+}
+
+.card-team {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.32rem 0;
+}
+
+.card-team-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92rem;
+}
+
+.card-winner .card-team-name {
+  color: var(--gold-bright);
+  font-weight: 600;
+}
+
+.card-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.card-status {
+  margin: 0.55rem 0 0;
+  color: var(--dim);
+  font-size: 0.78rem;
+}
+
+.outright-list {
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* ── Confetti (flag punter-confetti) ───────────────────────────────── */
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -4vh;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0.9;
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+/* ── Skeleton (simulator unreachable) ──────────────────────────────── */
+
+.hero-glow {
+  font-size: 4.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 34px rgba(212, 175, 55, 0.6));
+  animation: trophy-pulse 2.6s ease-in-out infinite alternate;
+}
+
+.stage-hint {
+  color: var(--dim);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-top: 1.4rem;
+}
+
+/* ── Keyframes ─────────────────────────────────────────────────────── */
+
+@keyframes edge-ignite {
+  from {
+    stroke: #262838;
+    filter: none;
+  }
+}
+
+@keyframes edge-flow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+@keyframes node-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  70% {
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+}
+
+@keyframes trophy-pulse {
+  from {
+    opacity: 0.7;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes confetti-fall {
+  from {
+    transform: translateY(-4vh) rotate(0deg);
+  }
+  to {
+    transform: translateY(110vh) rotate(680deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-won,
+  .node-advanced,
+  .trophy-halo,
+  .champion,
+  .confetti-piece,
+  .hero-glow,
+  .score-chip {
+    animation: none;
+  }
+}

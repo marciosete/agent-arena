@@ -1,172 +1,222 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import { AuthProvider } from '@arena/web-auth';
-import App from './App';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import {
+  ACCOUNT,
+  arenaAfterEach,
+  authHeader,
+  callsTo,
+  flagsOn,
+  marketFor,
+  renderRoot,
+  seedSession,
+  simState,
+  stubFetch,
+} from './__tests__/harness';
 
-function seedSession() {
-  const exp = Math.floor(Date.now() / 1000) + 3600;
-  const b64 = (o: unknown) =>
-    btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  localStorage.setItem('arena.token', `${b64({ alg: 'HS256' })}.${b64({ sub: 'u', exp })}.sig`);
-  localStorage.setItem(
-    'arena.account',
-    JSON.stringify({
-      id: '11111111-1111-4111-8111-111111111111',
-      email: 'punter@example.com',
-      name: 'Ada',
-      balance: 10_000,
-      isBot: false,
-      createdAt: '2026-07-01T10:00:00.000Z',
-    })
-  );
-}
+afterEach(arenaAfterEach);
 
-function renderApp() {
-  seedSession();
-  return render(
-    <AuthProvider bettingUrl="http://betting.test">
-      <App />
-    </AuthProvider>
-  );
-}
+describe('auth (pre-built @arena/web-auth) — the app lives behind it', () => {
+  it('no valid token ⇒ redirect to /login and the login screen (RequireAuth)', async () => {
+    stubFetch({});
+    renderRoot();
+    expect(screen.getByText('Sign in to Arena')).toBeTruthy();
+    await waitFor(() => expect(globalThis.location.pathname).toBe('/login'));
+    // None of the gated app chrome leaks out to logged-out visitors.
+    expect(screen.queryByLabelText('primary')).toBeNull();
+    expect(screen.queryByText('ROAD TO THE FINAL')).toBeNull();
+  });
 
-const FLAG_FIXTURE = [
-  {
-    key: 'punter-markets',
-    enabled: true,
-    description: 'markets',
-    updatedAt: '2026-07-02T10:00:00.000Z',
-  },
-  {
-    key: 'punter-bet-slip',
-    enabled: false,
-    description: 'bet slip',
-    updatedAt: '2026-07-02T10:00:00.000Z',
-  },
-  {
-    key: 'punter-bracket',
-    enabled: true,
-    description: 'bracket',
-    updatedAt: '2026-07-02T10:00:00.000Z',
-  },
-];
-
-function stubFetch(options: {
-  reject?: boolean;
-  healthOk?: boolean;
-  flagsOk?: boolean;
-  flags?: unknown;
-}) {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockImplementation((input: unknown) => {
-      if (options.reject) {
-        return Promise.reject(new Error('service down'));
+  it('every service call carries the session Bearer via apiFetch', async () => {
+    const token = seedSession();
+    const mock = stubFetch({ state: simState(), markets: [marketFor('R32-9')] });
+    renderRoot();
+    await waitFor(() => {
+      expect(callsTo(mock, '/flags').length).toBeGreaterThan(0);
+      expect(callsTo(mock, '/state').length).toBeGreaterThan(0);
+      expect(callsTo(mock, '/markets').length).toBeGreaterThan(0);
+    });
+    for (const endpoint of ['/flags', '/state', '/markets']) {
+      for (const call of callsTo(mock, endpoint)) {
+        expect(authHeader(call)).toBe(`Bearer ${token}`);
       }
-      if (String(input).endsWith('/flags')) {
-        return Promise.resolve({
-          ok: options.flagsOk ?? true,
-          json: async () => options.flags ?? [],
-        });
-      }
-      return Promise.resolve({ ok: options.healthOk ?? true });
-    })
-  );
-}
-
-describe('home page — production flag gating (DEV false)', () => {
-  afterEach(() => {
-    cleanup();
-    localStorage.clear();
-    vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
-    window.history.pushState({}, '', '/');
-  });
-
-  beforeEach(() => {
-    vi.stubEnv('DEV', false);
-  });
-
-  it('renders the hero with no nav while every feature is dark', async () => {
-    stubFetch({ flags: [] });
-    renderApp();
-    expect(screen.getByText('Road to the Final')).toBeTruthy();
-    await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(0));
-    expect(screen.queryByLabelText('primary')).toBeNull();
-    expect(screen.queryByText('online')).toBeNull();
-  });
-
-  it('shows nav items only for enabled flags', async () => {
-    stubFetch({ flags: FLAG_FIXTURE });
-    renderApp();
-    await waitFor(() => expect(screen.getByText('Markets')).toBeTruthy());
-    expect(screen.getByText('Bracket')).toBeTruthy();
-    expect(screen.queryByText('Bet Slip')).toBeNull();
-    expect(screen.queryByText('My Bets')).toBeNull();
-  });
-
-  it('hides the nav when the flag service is unreachable', async () => {
-    stubFetch({ reject: true });
-    renderApp();
-    await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(0));
-    expect(screen.queryByLabelText('primary')).toBeNull();
-  });
-
-  it('hides the nav when the flag payload is malformed', async () => {
-    stubFetch({ flags: [{ nope: true }] });
-    renderApp();
-    await waitFor(() => expect(vi.mocked(fetch).mock.calls.length).toBeGreaterThan(0));
-    expect(screen.queryByLabelText('primary')).toBeNull();
-  });
-});
-
-describe('home page — local dev bypass (DEV true)', () => {
-  afterEach(() => {
-    cleanup();
-    localStorage.clear();
-    vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
-    window.history.pushState({}, '', '/');
-  });
-
-  it('shows every feature regardless of flags', async () => {
-    vi.stubEnv('DEV', true);
-    stubFetch({ flags: [] }); // all dark
-    renderApp();
-    await waitFor(() => expect(screen.getByText('Markets')).toBeTruthy());
-    for (const label of ['Markets', 'Bet Slip', 'My Bets', 'Bracket']) {
-      expect(screen.getByText(label)).toBeTruthy();
     }
   });
-});
 
-describe('status page', () => {
-  afterEach(() => {
-    cleanup();
-    localStorage.clear();
-    vi.unstubAllGlobals();
-    window.history.pushState({}, '', '/');
+  it('Log out clears the session and returns to /login', async () => {
+    seedSession();
+    stubFetch({ state: simState() });
+    renderRoot();
+    const chip = await screen.findByRole('button', { name: /Ana/ });
+    fireEvent.click(chip);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Log out' }));
+    await waitFor(() => expect(screen.getByText('Sign in to Arena')).toBeTruthy());
+    expect(localStorage.getItem('arena.token')).toBeNull();
+    await waitFor(() => expect(globalThis.location.pathname).toBe('/login'));
   });
 
-  it('shows every service online when health checks succeed', async () => {
-    stubFetch({});
-    window.history.pushState({}, '', '/status');
-    renderApp();
-    expect(screen.getByText('Platform Status')).toBeTruthy();
+  it('Switch punter also signs out (account persists server-side)', async () => {
+    seedSession();
+    stubFetch({ state: simState() });
+    renderRoot();
+    fireEvent.click(await screen.findByRole('button', { name: /Ana/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Switch punter' }));
+    await waitFor(() => expect(screen.getByText('Sign in to Arena')).toBeTruthy());
+  });
+});
+
+describe('wallet chip', () => {
+  it('shows the balance starting at 10,000 (OPENING_BALANCE from session.account)', async () => {
+    seedSession();
+    stubFetch({ state: simState() });
+    renderRoot();
+    expect(await screen.findByText('🍩 10,000')).toBeTruthy();
+    expect(screen.getByText('Ana')).toBeTruthy();
+  });
+
+  it('opens the profile menu with nickname, live balance and email', async () => {
+    seedSession();
+    stubFetch({ state: simState() });
+    renderRoot();
+    fireEvent.click(await screen.findByRole('button', { name: /Ana/ }));
+    const menu = screen.getByRole('menu', { name: 'profile' });
+    expect(menu.textContent).toContain('Ana');
+    expect(menu.textContent).toContain('🍩 10,000');
+    expect(menu.textContent).toContain('punter@example.com');
+  });
+});
+
+describe('feature gating — production mode (DEV false): dark means absent', () => {
+  beforeEach(() => {
+    vi.stubEnv('DEV', false);
+    seedSession();
+  });
+
+  it('all flags dark ⇒ no nav, and home is the minimal hero (not the bracket)', async () => {
+    const mock = stubFetch({ flags: [], state: simState() });
+    renderRoot();
+    await waitFor(() => expect(callsTo(mock, '/flags').length).toBeGreaterThan(0));
+    expect(screen.queryByLabelText('primary')).toBeNull();
+    expect(screen.getByText('Road to the Final')).toBeTruthy(); // hero title
+    expect(screen.queryByRole('img', { name: 'Road to the Final bracket' })).toBeNull();
+  });
+
+  it('a flipped flag reveals exactly its feature', async () => {
+    stubFetch({ flags: flagsOn('punter-markets', 'punter-bracket'), state: simState() });
+    renderRoot();
+    expect(await screen.findByText('Markets')).toBeTruthy();
+    expect(screen.queryByText('My Bets')).toBeNull();
+    expect(screen.queryByText('Bet Slip')).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByRole('img', { name: 'Road to the Final bracket' })).toBeTruthy()
+    );
+  });
+});
+
+describe('feature gating — local dev (DEV true) shows everything', () => {
+  it('renders every nav item and the bracket even with all flags dark', async () => {
+    vi.stubEnv('DEV', true);
+    seedSession();
+    stubFetch({ flags: [], state: simState() });
+    renderRoot();
+    for (const label of ['Markets', 'Bet Slip', 'My Bets']) {
+      expect(await screen.findByText(label)).toBeTruthy();
+    }
+    await waitFor(() =>
+      expect(screen.getByRole('img', { name: 'Road to the Final bracket' })).toBeTruthy()
+    );
+  });
+});
+
+describe('routes', () => {
+  it('deep-links to /status survive the login bounce and show live health dots', async () => {
+    seedSession();
+    stubFetch({ state: simState() });
+    globalThis.history.pushState({}, '', '/status');
+    renderRoot();
+    expect(await screen.findByText('Platform Status')).toBeTruthy();
     await waitFor(() => expect(screen.getAllByText('online')).toHaveLength(4));
   });
 
-  it('shows services offline when health checks are rejected', async () => {
-    stubFetch({ reject: true });
-    window.history.pushState({}, '', '/status');
-    renderApp();
+  it('marks services offline when their health checks fail', async () => {
+    seedSession();
+    stubFetch({ healthOk: false, state: simState() });
+    globalThis.history.pushState({}, '', '/status');
+    renderRoot();
     await waitFor(() => expect(screen.getAllByText('offline')).toHaveLength(4));
   });
 
-  it('shows services offline when health checks respond unhealthy', async () => {
-    stubFetch({ healthOk: false, flagsOk: false });
-    window.history.pushState({}, '', '/status');
-    renderApp();
-    await waitFor(() => expect(screen.getAllByText('offline')).toHaveLength(4));
+  it('/status stays reachable WITHOUT a session — outage reporting cannot sit behind login', async () => {
+    stubFetch({});
+    globalThis.history.pushState({}, '', '/status');
+    renderRoot();
+    expect(await screen.findByText('Platform Status')).toBeTruthy();
+    expect(screen.queryByText('Sign in to Arena')).toBeNull();
+    await waitFor(() => expect(screen.getAllByText('online')).toHaveLength(4));
+  });
+
+  it('navigates between pages through the flag-driven nav', async () => {
+    vi.stubEnv('DEV', true);
+    seedSession();
+    stubFetch({ state: simState(), markets: [marketFor('R32-9')], bets: [] });
+    renderRoot();
+    fireEvent.click(await screen.findByText('Markets'));
+    expect(await screen.findByRole('heading', { name: 'Markets' })).toBeTruthy();
+    fireEvent.click(screen.getByText('My Bets'));
+    expect(await screen.findByRole('heading', { name: 'My Bets' })).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('home'));
+    await waitFor(() =>
+      expect(screen.getByRole('img', { name: 'Road to the Final bracket' })).toBeTruthy()
+    );
+  });
+
+  it('a dark route falls back to home rather than rendering a stub', async () => {
+    vi.stubEnv('DEV', false);
+    seedSession();
+    stubFetch({ flags: [], state: simState() });
+    globalThis.history.pushState({}, '', '/markets');
+    renderRoot();
+    expect(await screen.findByText('Road to the Final')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Markets' })).toBeNull();
+  });
+});
+
+describe('wallet balance updates after a bet (header ↔ betting account)', () => {
+  it('refreshes the chip from GET /accounts/:id after placing a bet', async () => {
+    vi.stubEnv('DEV', true);
+    seedSession();
+    stubFetch({
+      state: simState(),
+      markets: [marketFor('R32-9')],
+      account: { ...ACCOUNT, balance: 9_900 },
+      placeBetReplies: [
+        {
+          status: 201,
+          body: {
+            id: '44444444-4444-4444-8444-444444444444',
+            accountId: ACCOUNT.id,
+            marketId: 'R32-9',
+            selectionId: 'sel-POR',
+            stake: 100,
+            price: 1.85,
+            potentialReturn: 185,
+            status: 'pending',
+            placedAt: '2026-07-03T10:00:00.000Z',
+            settledAt: null,
+          },
+        },
+      ],
+    });
+    renderRoot();
+    expect(await screen.findByText('🍩 10,000')).toBeTruthy();
+
+    // Markets page → price button → slip → stake → place.
+    fireEvent.click(await screen.findByText('Markets'));
+    const priceButtons = await screen.findAllByRole('button', { name: /Portugal/ });
+    fireEvent.click(priceButtons[0]);
+    fireEvent.change(await screen.findByLabelText('Stake'), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Place bet' }));
+
+    await waitFor(() => expect(screen.getByText(/Bet placed/)).toBeTruthy());
+    expect(await screen.findByText('🍩 9,900')).toBeTruthy();
   });
 });
