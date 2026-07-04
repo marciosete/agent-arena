@@ -11,17 +11,16 @@ server-side auth guards. We lean on those.
 
 ## In place
 
-| Control                           | Status                                                                                               |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| No secrets in git history         | ✅ verified — no `.env` ever committed; gitleaks full-history scan clean                             |
-| CI secrets safe from fork PRs     | ✅ workflows use `pull_request` (not `pull_request_target`); GitHub withholds secrets from fork runs |
-| Secret scanning + push protection | ✅ GHAS enabled on the repo                                                                          |
-| Flag writes guarded               | ✅ `PUT /flags/:key` needs `x-admin-key` (`FLAGS_ADMIN_KEY`); reads public                           |
-| Simulator control plane guarded   | ✅ `POST /reset` (+ `/play-next`, `/run` when built) needs `x-admin-key` (`SIMULATOR_ADMIN_KEY`)     |
-| Settlement guard (betting)        | 📋 specced — `/settle` must carry `BETTING_ADMIN_KEY`; built tomorrow                                |
-| Input validation                  | ✅ every inbound payload parsed with zod contract schemas                                            |
-| Prisma parameterized queries      | ✅ no raw SQL; no `$queryRawUnsafe`                                                                  |
-| Timing-safe key comparison        | ✅ guards use `crypto.timingSafeEqual`                                                               |
+| Control                           | Status                                                                                                                                                         |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No secrets in git history         | ✅ verified — no `.env` ever committed; gitleaks full-history scan clean                                                                                       |
+| CI secrets safe from fork PRs     | ✅ workflows use `pull_request` (not `pull_request_target`); GitHub withholds secrets from fork runs                                                           |
+| Secret scanning + push protection | ✅ GHAS enabled on the repo                                                                                                                                    |
+| Admin actions guarded by identity | ✅ flag flips, simulator control, settlement, reset + bot provisioning need a token with the unforgeable `admin` claim (shared `AdminGuard`); no `x-admin-key` |
+| Admin allowlist                   | ✅ `admin` claim stamped at login for `ADMIN_EMAILS` addresses; service-to-service uses admin service tokens                                                   |
+| Input validation                  | ✅ every inbound payload parsed with zod contract schemas                                                                                                      |
+| Prisma parameterized queries      | ✅ no raw SQL; no `$queryRawUnsafe`                                                                                                                            |
+| Timing-safe key comparison        | ✅ guards use `crypto.timingSafeEqual`                                                                                                                         |
 
 ## Known limitations (accepted for a one-day demo)
 
@@ -33,21 +32,24 @@ server-side auth guards. We lean on those.
   derives the account from the token (no `accountId` in the body), so there's no cross-account
   IDOR. `GET /accounts/:id` still exposes balances to any _logged-in_ user by design (that's the
   leaderboard) — no real PII.
-- **All three Neon databases share one role** (`neondb_owner`). Connection strings aren't
-  public, but if one leaked, it reaches all three DBs. Post-event, or if you want defense in
+- **All four Neon databases share one role** (`neondb_owner`). Connection strings aren't
+  public, but if one leaked, it reaches all four DBs. Post-event, or if you want defense in
   depth: create a scoped role per database. Rotate the shared password after the event
   regardless (it passed through the setup chat).
-- **Admin keys are shared per service, not per user.** Fine for a single operator; not an
-  audit trail of who flipped what.
+- **Admin authority is identity-based, not a shared key** — the `admin` claim is stamped at
+  login for `ADMIN_EMAILS` addresses, so admin actions are attributable to a user. The residual
+  trust is that any holder of `SESSION_SECRET` (the backend services) can mint an admin token —
+  acceptable because that secret is backend-only and never leaves the server.
 
 ## If a pentester "wins"
 
-The blast radius is contained: virtual money only, no PII, no payment rails, ephemeral
-simulator state with a `/reset`, and every database is disposable (drop and re-migrate).
+The blast radius is contained: virtual money only, no PII, no payment rails, a resettable
+simulator bracket (admin `/reset` cascade), and every database is disposable (drop and re-migrate).
 The worst realistic outcome is demo disruption — which the local fallback neutralizes.
 
 ## Rotate after the event
 
-`FLAGS_ADMIN_KEY`, `SIMULATOR_ADMIN_KEY`, `BETTING_ADMIN_KEY`, the shared **`SESSION_SECRET`**
-(signs every JWT — a leak forges any session), the **`RESEND_API_KEY`**, the Neon password, and
-the `VERCEL_TOKEN` — all handled during setup and should be cycled.
+The shared **`SESSION_SECRET`** (signs every JWT — a leak forges any session, including admin
+tokens), the **`RESEND_API_KEY`**, the Neon password, and the `VERCEL_TOKEN` — all handled during
+setup and should be cycled. (The old per-service `*_ADMIN_KEY`s were removed with the move to
+identity-based admin.)

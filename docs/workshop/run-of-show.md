@@ -27,8 +27,8 @@ enterprise-grade software — through real quality gates — in one sitting.
       (`brew install` if not).
 - [ ] **Production**: Render (4 services) and Vercel (2 apps) deploys green on the latest
       main. Pre-warm the four Render `/health` URLs (free tier sleeps; see docs/engineering/deployment.md).
-      Reset all flags to dark (admin key: `grep FLAGS_ADMIN_KEY services/flags/.env`):
-      PUT each of the five flags with `-H "x-admin-key: $FLAGS_ADMIN_KEY"` and `{"enabled":false}`.
+      Reset all flags to dark: sign in to trader-ops with an admin email (`ADMIN_EMAILS`) and
+      toggle the five flags off in the release panel, or `PUT` each with `-H "authorization: Bearer $ADMIN_JWT"` and `{"enabled":false}`.
 - [ ] Do-not-disturb on, notifications off, font sizes checked from the back of the room.
 - [ ] Optional: `ANTHROPIC_API_KEY` exported if you want the Pundit bot stretch goal.
 

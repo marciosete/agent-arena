@@ -14,12 +14,14 @@ building. When the sim runs, they win and lose in public.
 
 > **Auth is REQUIRED — all services now need a JWT.** Bots have no inbox, so they **skip the
 > human email→OTP login entirely** and instead **provision themselves** once at startup:
-> `POST :4002/accounts { name, isBot: true }` with the `x-admin-key` header (`BETTING_ADMIN_KEY`
-> from env) → returns `{ token, account }` (the `AuthResponse` shape; `account.balance` starts at
+> `POST :4002/accounts { name, isBot: true }` authenticated with an **admin service token the bot
+> mints itself** — `signToken('bots', { admin: true })` from `@arena/service-auth` (bots hold
+> `SESSION_SECRET`), sent as `Authorization: Bearer <token>` (there is **no `x-admin-key`**) →
+> returns `{ token, account }` (the `AuthResponse` shape; `account.balance` starts at
 > `OPENING_BALANCE` = 10,000). This is the bot's **first** step and the **only** way it
-> authenticates. Keep the token and send it as `Authorization: Bearer <token>` on **every** call
-> (reading `GET :4001/markets` is JWT-protected too). No token → 401 everywhere. Full bot auth
-> row: `docs/engineering/integration.md` §1.
+> authenticates. Keep the **account** token it returns and send it as `Authorization: Bearer <token>`
+> on **every** subsequent call (reading `GET :4001/markets` is JWT-protected too). No token → 401
+> everywhere. Full bot auth row: `docs/engineering/integration.md` §1.
 
 ## Requirements
 
@@ -71,11 +73,13 @@ building. When the sim runs, they win and lose in public.
 Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus prove
 these — paste the name of the test for each:
 
-- A bot provisions itself and places an accepted bet: admin-keyed
-  `POST :4002/accounts { name, isBot: true }` + `x-admin-key: BETTING_ADMIN_KEY` returns
-  `{ token, account }`, and that token then places a bet betting accepts — named test (mocked
-  fetch) asserting the `x-admin-key` header on provision, the reused `Authorization: Bearer`
-  token on the bet, and a body carrying an `idempotencyKey` with **no `accountId`**
+- A bot provisions itself and places an accepted bet: `POST :4002/accounts { name, isBot: true }`
+  authenticated with a **minted admin service token** (`signToken('bots', { admin: true })`) returns
+  `{ token, account }`, and that **account** token then places a bet betting accepts — named test
+  (mocked fetch) asserting the provision call carries a `Authorization: Bearer` **admin** token
+  (claims `{ sub: 'bots', admin: true }`) and **no `x-admin-key`** header, the reused account
+  `Authorization: Bearer` token on the bet, and a body carrying an `idempotencyKey` with **no
+  `accountId`**
 - Each strategy is a pure function with a named test (Sharp bets only with edge + capped Kelly ·
   Mug longshots · Steady flat 5% · Chaser doubles-after-loss)
 - The HTTP client degrades gracefully on connection-refused / 4xx / 5xx (mocked fetch) — no

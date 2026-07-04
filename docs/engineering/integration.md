@@ -29,22 +29,24 @@ per-user rule is only on writes — a punter bets from their own wallet, derived
 
 Who gets a token, and how:
 
-| Caller                    | How it authenticates                                                                                                                                                                                                                         |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Human punter / trader** | Signs in through `@arena/web-auth` `LoginPage` (email → 6-digit OTP → JWT). The app then calls services via `apiFetch`, which attaches the Bearer token. Both apps are wrapped in `<AuthProvider><RequireAuth>` — no valid token ⇒ `/login`. |
-| **Bot**                   | Bots have no inbox. A bot is provisioned once via admin-keyed `POST /accounts` (returns `{ token, account }`); it reuses that token as its Bearer on every call.                                                                             |
-| **Service → service**     | Mint a short-lived service token with `@arena/service-auth` `signToken('<service>')` (same `SESSION_SECRET`) and send it as the Bearer. Used by betting→pricing and simulator→pricing/betting.                                               |
+| Caller                    | How it authenticates                                                                                                                                                                                                                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Human punter / trader** | Signs in through `@arena/web-auth` `LoginPage` (email → 6-digit OTP → JWT). Betting stamps `admin: true` into the token when the email is on its `ADMIN_EMAILS` allowlist. The app then calls services via `apiFetch`, which attaches the Bearer token. Both apps are wrapped in `<AuthProvider><RequireAuth>` — no valid token ⇒ `/login`. |
+| **Bot**                   | Bots have no inbox. A bot mints an admin token — `signToken('bots', { admin: true })` (it holds `SESSION_SECRET`) — to call `POST /accounts`, then reuses the **account** token that returns as its Bearer on every bet.                                                                                                                    |
+| **Service → service**     | Mint a short-lived admin service token with `@arena/service-auth` `signToken('<service>', { admin: true })` (same `SESSION_SECRET`) and send it as the Bearer. Used by betting→pricing and simulator→pricing/betting.                                                                                                                       |
 
-Some **mutations require an ADDITIONAL `x-admin-key`** on top of the JWT (defence in depth for the
-control plane): betting `POST /accounts` + `POST /settle`, flags `PUT /flags/:key`, and every
-simulator control endpoint (`POST /play-next`, `/run`, `/reset`). Admin keys are per-service env
-vars (`BETTING_ADMIN_KEY`, `FLAGS_ADMIN_KEY`, `SIMULATOR_ADMIN_KEY`); the trader app holds the
-flags admin key, the operator/bots hold the others.
+**Admin authority is identity, carried in the token — there is no `x-admin-key`.** The JWT holds an
+unforgeable `admin` claim (only a `SESSION_SECRET` holder can sign one), and the shared `AdminGuard`
+(from `@arena/service-auth`) allows a request only when that claim is set. The claim is stamped for
+allowlisted operator logins (`ADMIN_EMAILS`) and for backend service tokens. Admin-only mutations:
+betting `POST /accounts` + `POST /settle` + `POST /reset`, pricing `POST /reset`, flags
+`PUT /flags/:key`, and every simulator control endpoint (`POST /play-next`, `/run`, `/reset`). The
+operator just signs in with an admin email — nothing to arm in the UI.
 
 **Canonical failure codes** (assert these in every spec's DoD): a missing or invalid Bearer token ⇒
-`401 Unauthorized` (from the shared `JwtAuthGuard`); a missing or wrong `x-admin-key` on a control
-endpoint ⇒ `403 Forbidden`; a body that fails its zod schema ⇒ `400 Bad Request`; a bet whose price
-moved beyond tolerance ⇒ `409 Conflict`.
+`401 Unauthorized` (from the shared `JwtAuthGuard`); a valid but non-admin token on an admin action ⇒
+`403 Forbidden` (from `AdminGuard`); a body that fails its zod schema ⇒ `400 Bad Request`; a bet
+whose price moved beyond tolerance ⇒ `409 Conflict`.
 
 **Frontend surface (`@arena/web-auth`, pre-built — both apps use exactly this; don't reinvent it).**
 Wrap the app in `<AuthProvider bettingUrl={…}><RequireAuth>…</RequireAuth></AuthProvider>`. Then
@@ -69,16 +71,18 @@ punter-web ──GET /state────────────────▶ s
 
 trader-ops ──GET /exposure, /accounts──▶ betting        (liability board + leaderboard)
 trader-ops ──GET /flags────────────────▶ flags          (read)
-trader-ops ──PUT /flags/:key───────────▶ flags          (+ x-admin-key: the release switch)
+trader-ops ──PUT /flags/:key───────────▶ flags          (admin: the release switch)
 trader-ops ──GET /state────────────────▶ simulator      (settlement feed)
-trader-ops ──POST /play-next,/run,/reset▶ simulator     (+ x-admin-key: finale control, optional)
+trader-ops ──POST /play-next,/run,/reset▶ simulator     (admin: finale control, optional)
 
 betting ────GET /markets/:fixtureId────▶ pricing        (validate price + market open at bet time; service token)
 
 simulator ──POST /reprice──────────────▶ pricing        (after each result; service token)
-simulator ──POST /settle───────────────▶ betting        (after each result; service token + x-admin-key)
+simulator ──POST /settle───────────────▶ betting        (after each result; admin service token)
+simulator ──POST /reset────────────────▶ pricing        (reset-bracket cascade: clear + reseed markets)
+simulator ──POST /reset────────────────▶ betting        (reset-bracket cascade: void bets, wallets → 10k)
 
-bots ───────POST /accounts─────────────▶ betting        (provision self; x-admin-key ⇒ token)
+bots ───────POST /accounts─────────────▶ betting        (provision self; admin token ⇒ account token)
 bots ───────GET /markets───────────────▶ pricing        (find value)
 bots ───────POST /bets─────────────────▶ betting        (place bets with own token)
 bots ───────GET /accounts/:id, /bets───▶ betting        (own bankroll + settled results for strategy)
@@ -131,7 +135,7 @@ Every result flows through the same pipeline. This is where the six workstreams 
 names its contract:
 
 1. **Trigger.** Operator (trader app or a script) → simulator `POST /play-next` (one fixture) or
-   `POST /run` (fast-forward, `intervalMs` pause between fixtures) — Bearer + `x-admin-key`.
+   `POST /run` (fast-forward, `intervalMs` pause between fixtures) — an admin token (operator or service).
 2. **Simulate.** Simulator picks the next unplayed `Fixture`, decides a winner (elo-weighted),
    mutates its bracket copy (score, `winnerTeamId`, `status: 'finished'`, advance the winner), and
    builds a `SettlementEvent { fixtureId, winnerTeamId, homeScore, awayScore, decidedOnPenalties,
@@ -145,8 +149,7 @@ settledAt }`.
 4. **Resolve winners.** From the returned markets the simulator computes `winningSelections`: for the
    just-settled `MATCH_WINNER` market, the selection whose `name` == the winner's `Team.name`; when
    the **final** is played, also the `OUTRIGHT` selection for the champion. (This is the §3 join.)
-5. **Settle bets.** Simulator → betting `POST /settle { settlement, winningSelections }` (Bearer +
-   `x-admin-key`). Betting, in a `$transaction`, marks each matching `pending` bet `won` (credit
+5. **Settle bets.** Simulator → betting `POST /settle { settlement, winningSelections }` (an admin service token). Betting, in a `$transaction`, marks each matching `pending` bet `won` (credit
    `potentialReturn` to the wallet) or `lost`, and returns `SettleResponse { settledBets,
 totalPaidOut }`.
 6. **Reflect.** UIs poll and animate: punter bracket + my-bets (`GET /state`, `GET /bets`), trader
@@ -183,6 +186,6 @@ Everything runs behind flags: `punter-markets`, `punter-bet-slip`, `punter-my-be
 ## 6. Release model (flags)
 
 Everything ships **dark**. A feature is revealed in production by flipping its flag
-(`PUT /flags/:key`, from the trader app with the flags admin key) — no redeploy. The punter app
+(`PUT /flags/:key`, from the trader app as an admin) — no redeploy. The punter app
 reads `GET /flags` and gates its nav/features on them; in local dev all features show regardless.
 See `docs/engineering/deployment.md`.

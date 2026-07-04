@@ -21,11 +21,11 @@ World Cup book.
 > with the punter app): no valid JWT → `/login`. Wrap the app in
 > `<AuthProvider bettingUrl={…}><RequireAuth>…</RequireAuth></AuthProvider>` and send the token on
 > every call (use its `apiFetch`) — **all services now require a JWT**. Any logged-in user can read
-> these boards; **flipping a flag is an admin write** and needs the flags admin key
-> (`FLAGS_ADMIN_KEY`) sent as `x-admin-key` _on top of_ the JWT (the panel prompts for it, never
-> bundled). The leaderboard shows each account's **nickname** (the `name` field, set at signup). The
-> auth model is `docs/engineering/integration.md` §1; every wire this app makes — endpoint + auth —
-> is §2. Read both first.
+> these boards; **flipping a flag is an admin write**, authorised by the `admin` claim in the token
+> (the shared `AdminGuard`) — nothing to arm in the UI. Sign in with an admin email and admin
+> actions work; a non-admin gets a `403`. The leaderboard shows each account's **nickname** (the
+> `name` field, set at signup). The auth model is `docs/engineering/integration.md` §1; every wire
+> this app makes — endpoint + auth — is §2. Read both first.
 
 ## Requirements
 
@@ -44,18 +44,18 @@ betCount, status: open|suspended|settled }`). Table: market, status, total stake
    `finished`, append to a live feed (newest on top): result, penalties flag (`Fixture` has no such
    boolean — derive it: level score `homeScore == awayScore` with a `winnerTeamId` ⇒ decided on
    pens), and which `MATCH_WINNER` market settled (join by `fixtureId`). **Optional finale control:**
-   drive the show with simulator `POST :4003/play-next` · `/run` · `/reset`, each **Bearer +
-   `x-admin-key`** (`SIMULATOR_ADMIN_KEY` — a _different_ key from the flags one; reuse the
-   inline-prompt pattern from the flag panel). Full result→settle pipeline: `integration.md` §4.
+   drive the show with simulator `POST :4003/play-next` · `/run` · `/reset` — admin-only via the
+   shared `AdminGuard`, so an admin operator just calls them via `apiFetch` (Bearer attached, no
+   extra header); a non-admin gets `403`. Full result→settle pipeline: `integration.md` §4.
 5. **Release console: the feature-flag panel.** List `GET :4004/flags` (Bearer read) →
    `FeatureFlag[]` with toggle switches; flipping one calls `PUT :4004/flags/:key` with body
    `{ enabled }` (optimistic UI, roll back on error). This panel is how features get RELEASED to
    production during the show (`docs/engineering/integration.md` §6) — give it the gravitas of a
    deploy button, including a confirm on flips. Show each flag's `key`, `description`, `enabled`
-   state and `updatedAt` last-updated time. **Writes need a second gate**: the PUT requires the
-   flags admin key (`FLAGS_ADMIN_KEY`) sent as an `x-admin-key` header _in addition to_ the Bearer
-   JWT — a read-only JWT alone is rejected. Never bake the key into the bundle — prompt for it once
-   (small inline form), keep it in localStorage, send it on every flip, and surface a clear message on 401.
+   state and `updatedAt` last-updated time. **The PUT is admin-only**: the shared `AdminGuard`
+   authorises it from the `admin` claim in the token, so an admin operator just flips via `apiFetch`
+   (Bearer attached) — no key to prompt for, arm, or store. A non-admin token is rejected with `403`
+   ("not an admin — sign in with an admin email"); a `401` means the session expired.
 6. Single dense screen — no routing needed. Auto-refresh indicators so traders trust the data.
 
 All service URLs must resolve as `import.meta.env.VITE_<SERVICE>_URL ?? BASE_URLS.<service>`
@@ -78,9 +78,9 @@ these — paste the name of the test for each:
 - **No token ⇒ `/login`**: an unauthenticated visit redirects to the login route (`RequireAuth`),
   and every read (`/exposure`, `/accounts`, `/markets`, `/state`, `/flags`) carries the Bearer JWT
   via `apiFetch`
-- Flags panel flips a flag via `PUT :4004/flags/:key` (body `{ enabled }`) with the `x-admin-key`
-  header (key from a prompt, kept in localStorage) — and a flip **without** the admin key is
-  rejected and surfaced clearly (401)
+- Flags panel flips a flag via `PUT :4004/flags/:key` (body `{ enabled }`) for an **admin
+  operator** (the `admin` claim carries the write, sent via `apiFetch`) — and a flip from a
+  **non-admin** token is rejected with `403` and surfaced clearly (a `401` means the session expired)
 - Exposure board (heat thresholds), leaderboard ordering, market monitor, and settlement feed
   each render from their endpoint
 

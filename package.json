@@ -105,5 +105,15 @@
     "typescript-eslint": "^8.46.2",
     "unplugin-swc": "^1.5.5",
     "vitest": "^3.2.4"
+  },
+  "license": "MIT",
+  "author": "Marcio Sete",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marciosete/agent-arena.git"
+  },
+  "homepage": "https://github.com/marciosete/agent-arena#readme",
+  "bugs": {
+    "url": "https://github.com/marciosete/agent-arena/issues"
   }
 }

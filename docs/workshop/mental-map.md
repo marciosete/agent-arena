@@ -29,8 +29,8 @@ workstreams: Pricing, Betting, Simulator, Punter, Trader, Bots.
 
 - **Purpose:** decouples release from deploy — everything ships dark; a flag flip reveals it
   in production in seconds.
-- **Capabilities:** public flag board (`GET /flags`); guarded flips (`PUT` + admin key); five
-  flags seeded dark; live at flags.hackathon.beer.
+- **Capabilities:** flag board (`GET /flags`, any logged-in user); admin-only flips
+  (`PUT`, identity-based `AdminGuard`); five flags seeded dark; live at flags.hackathon.beer.
 - **State of play:** 100% built, deployed, verified.
 - **Tomorrow:** nothing to build — it gets _used_ all day (trader builds a UI over it).
 
@@ -84,7 +84,7 @@ workstreams: Pricing, Betting, Simulator, Punter, Trader, Bots.
 - **Purpose:** the house's view — risk, liability, leaderboard, and the release console.
 - **State of play:** bare deployed shell.
 - **Milestones tomorrow:**
-  1. **Flags release panel** — toggle switches (admin key); _the_ release button of the day
+  1. **Flags release panel** — toggle switches (admin login); _the_ release button of the day
   2. Exposure board — heat-mapped liability per market
   3. Punter watchlist / leaderboard — balances vs the 10k open (the finale scoreboard)
   4. Market monitor (offered vs fair — the margin, visible) + settlement feed

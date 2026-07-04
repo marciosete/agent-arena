@@ -16,13 +16,15 @@ lives by. This is the service where correctness is non-negotiable — money move
 > **Accounts + auth are PRE-BUILT platform infra (like flags) — READ-ONLY. Do not rebuild them.**
 > Under `src/auth/` and `src/accounts/` (and already in `prisma/schema.prisma`) live: the `Account`
 > and `Otp` models; passwordless **email + OTP** login (`POST /auth/request-otp`,
-> `POST /auth/verify` → `AuthResponse { token, account }`, marked `@Public()`); admin
-> bot-provisioning (`POST /accounts`, `x-admin-key` → `AuthResponse`); the leaderboard reads
+> `POST /auth/verify` → `AuthResponse { token, account }`, marked `@Public()`) — which stamps an
+> **`admin` claim** on the token when the email is on the `ADMIN_EMAILS` allowlist (`isAdminEmail`);
+> admin bot-provisioning (`POST /accounts`, admin token → `AuthResponse`); the leaderboard reads
 > (`GET /accounts`, `GET /accounts/:id`); the global **`JwtAuthGuard`** (wired as `APP_GUARD` — it
-> derives the account from the Bearer token) and the **`AdminGuard`** (`x-admin-key`); and
-> `ZodValidationPipe` — all from `@arena/service-auth`. See the auth model in
+> derives the account from the Bearer token and sets `request.isAdmin`) and the shared
+> **`AdminGuard`** (allows only tokens carrying the `admin` claim — identity-based, no `x-admin-key`);
+> and `ZodValidationPipe` — all from `@arena/service-auth`. See the auth model in
 > `docs/engineering/integration.md` §1. **You build the money on top:** the `Bet`/`LedgerEntry`
-> models, `POST /bets`, `GET /bets`, `POST /settle`, `GET /exposure`.
+> models, `POST /bets`, `GET /bets`, `POST /settle`, `POST /reset`, `GET /exposure`.
 
 ## Data model (design it, then `npx prisma migrate dev`)
 
@@ -70,16 +72,20 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
 3. **`GET /bets?accountId=&status=`** 🔒 Bearer — the my-bets view. Validate the query with
    `BetQuerySchema` (`accountId` uuid optional, `status` optional). Reads carry no per-user check
    (integration §1): any logged-in caller may read; `accountId` is just a filter.
-4. **`POST /settle`** 🔒 Bearer **+ `x-admin-key`** — called by the **simulator** with a service token
-   - `BETTING_ADMIN_KEY` (finale chain: `integration.md` §4 step 5, §5). Body `SettleRequestSchema`
-     `{ settlement: SettlementEvent, winningSelections: [{ marketId, selectionId }] }`. In **one
-     `$transaction`**, for each settled market (the distinct `marketId`s in `winningSelections`): mark
-     `pending` bets on the winning `selectionId` → **`won`** (credit `potentialReturn` + append a
-     `LedgerEntry`); mark all other `pending` bets on that market → **`lost`**. Only `pending` bets are
-     touched, so a repeat call is a **no-op** (idempotent per settlement). Return
-     `SettleResponse { settledBets, totalPaidOut }`. Guard = global `JwtAuthGuard` + the pre-built
-     `AdminGuard`.
-5. **`GET /exposure`** 🔒 Bearer — the trader liability board (`ExposureReportSchema`:
+4. **`POST /settle`** 🔒 Bearer **(admin)** — called by the **simulator** with an admin service token
+   (`signToken('simulator', { admin: true })`; finale chain: `integration.md` §4 step 5, §5). Body
+   `SettleRequestSchema` `{ settlement: SettlementEvent, winningSelections: [{ marketId, selectionId }] }`.
+   In **one `$transaction`**, for each settled market (the distinct `marketId`s in `winningSelections`):
+   mark `pending` bets on the winning `selectionId` → **`won`** (credit `potentialReturn` + append a
+   `LedgerEntry`); mark all other `pending` bets on that market → **`lost`**. Only `pending` bets are
+   touched, so a repeat call is a **no-op** (idempotent per settlement). Return
+   `SettleResponse { settledBets, totalPaidOut }`. Guard = global `JwtAuthGuard` + the shared
+   identity-based `AdminGuard`.
+5. **`POST /reset`** 🔒 Bearer **(admin)** — the platform's Reset-bracket cascade calls this (from the
+   simulator). In one `$transaction`: void every `Bet` + `LedgerEntry`, delete bot accounts
+   (`isBot = true`), and reset human wallets to `OPENING_BALANCE` — **human accounts/logins are kept**.
+   Return `ResetResponse { betsVoided, botsRemoved, walletsReset }`. Guarded by the shared `AdminGuard`.
+6. **`GET /exposure`** 🔒 Bearer — the trader liability board (`ExposureReportSchema`:
    `{ generatedAt, markets[] }`). For each market with staked (`pending`) bets:
    `totalStaked` = Σ stake, `betCount`, and **`maxLiability`** = worst-case gross payout = the
    maximum, across the market's selections, of Σ `potentialReturn` of `pending` bets on that
@@ -92,8 +98,8 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
 - Enforce every money rule **server-side**: `stake > 0`, `stake ≤ balance`, no NaN/overflow; the
   account comes from the **token**, never the body. Wallet debit + bet + ledger in one `$transaction`.
 - Idempotency is a **DB unique constraint** on the key, not an `if`-check that races.
-- `/settle` is guarded (Bearer + `x-admin-key`). Error bodies never expose connection strings or
-  stack traces.
+- `/settle` and `/reset` are admin-guarded (a token with the `admin` claim, via the shared
+  `AdminGuard`). Error bodies never expose connection strings or stack traces.
 
 ## Enterprise bar
 
@@ -110,14 +116,16 @@ The scaffold's `PrismaService` is wired (global module); the connection string c
 Meet the **gates in `docs/engineering/definition-of-done.md`** (run and paste the evidence). Plus a named
 passing test for each — paste the test names:
 
-- protected endpoints (`POST /bets`, `GET /bets`, `POST /settle`, `GET /exposure`) return **401** on
-  a missing/invalid token (don't `@Public()` them) · **a bet cannot set another account's id** — the
-  account is derived from the token (no `accountId` in the body) · rejects stake > balance · **409
-  when the live price moved > tolerance or the market is not `open`** · **replayed idempotency key
-  returns the original bet, no double debit** · wallet debit + bet + ledger in one `$transaction`
-  (rolls back on any failure) · settlement **credits winners** (`potentialReturn`) and marks losers
-  `lost` · **settle-twice is a no-op** · `/settle` rejects a missing/wrong `x-admin-key` (**401**,
-  via the pre-built `AdminGuard`; the key is `BETTING_ADMIN_KEY`)
+- protected endpoints (`POST /bets`, `GET /bets`, `POST /settle`, `POST /reset`, `GET /exposure`)
+  return **401** on a missing/invalid token (don't `@Public()` them) · **a bet cannot set another
+  account's id** — the account is derived from the token (no `accountId` in the body) · rejects
+  stake > balance · **409 when the live price moved > tolerance or the market is not `open`** ·
+  **replayed idempotency key returns the original bet, no double debit** · wallet debit + bet +
+  ledger in one `$transaction` (rolls back on any failure) · settlement **credits winners**
+  (`potentialReturn`) and marks losers `lost` · **settle-twice is a no-op** · the admin endpoints
+  (`/settle`, `/reset`, `/accounts`) return **403** for a valid **non-admin** token (via the shared
+  identity-based `AdminGuard`) and succeed for an admin token · **`/reset` voids bets, drops bots,
+  and restores human wallets to `OPENING_BALANCE` while keeping human accounts**
 - the exposure report's max-liability maths
 - Prisma migration applied (`npx prisma migrate status` shown)
 

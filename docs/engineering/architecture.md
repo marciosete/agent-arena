@@ -10,6 +10,53 @@
 | trader-ops | `apps/trader-ops/`    | 5174 | —                 | Internal liability/exposure console                                                                |
 | bots       | `bots/`               | —    | —                 | Autonomous punter agents betting into the platform                                                 |
 
+## System map
+
+Every arrow is an HTTP call carrying a Bearer JWT (`@arena/service-auth`); each persisted
+service owns its own database (no shared tables — the boundary is enforced in data as well as
+code). The full contract for these wires — auth model, the bracket↔market join, the finale +
+reset cascade — is in [`integration.md`](integration.md).
+
+```mermaid
+graph TD
+  subgraph Clients
+    P["punter-web<br/>:5173"]
+    T["trader-ops<br/>:5174"]
+    B["bots"]
+  end
+
+  subgraph Services["NestJS services"]
+    PR["pricing :4001<br/>markets & odds"]
+    BE["betting :4002<br/>accounts · bets · settlement"]
+    SI["simulator :4003<br/>tournament engine"]
+    FL["flags :4004<br/>feature flags"]
+  end
+
+  DBpr[("pricing db")]
+  DBbe[("betting db")]
+  DBsi[("simulator db")]
+  DBfl[("flags db")]
+
+  P -->|"markets · bets · my-bets"| PR
+  P -->|" "| BE
+  P -->|"live bracket /state"| SI
+  P -->|"feature gating"| FL
+  T -->|"exposure · leaderboard"| BE
+  T -->|"read + flip flags"| FL
+  T -->|"finale control · reset"| SI
+  B -->|"provision · place bets"| BE
+  B -->|"find value"| PR
+
+  BE -->|"bet-time price check"| PR
+  SI -->|"reprice after each result"| PR
+  SI -->|"settle bets · reset cascade"| BE
+
+  PR --- DBpr
+  BE --- DBbe
+  SI --- DBsi
+  FL --- DBfl
+```
+
 **Continuous delivery:** main auto-deploys to production (Render + Vercel) after CI. Every
 feature ships **dark** behind a flag from the flags service and is released by flipping it —
 see `docs/engineering/deployment.md`. Client URLs resolve env-first with localhost fallback:

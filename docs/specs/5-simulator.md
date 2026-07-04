@@ -63,15 +63,15 @@ settledAt }` from the played fixture.
 **Security — everything requires auth; the control plane needs admin on top.** Register the shared
 `JwtAuthGuard` from `@arena/service-auth` globally (`APP_GUARD`) and mark `GET /health` `@Public()`
 — so **every endpoint (incl. `GET /state`) requires a valid JWT**. The control endpoints
-`POST /play-next`, `POST /run`, `POST /reset` ALSO carry `@UseGuards(AdminGuard)` (`x-admin-key` =
-`SIMULATOR_ADMIN_KEY`) — defense in depth: a JWT proves _authenticated_, the admin key proves
-_authorized_ to drive the finale.
+`POST /play-next`, `POST /run`, `POST /reset` ALSO carry `@UseGuards(AdminGuard)` — the shared,
+identity-based guard from `@arena/service-auth`: a JWT proves _authenticated_, and the token's
+`admin` claim proves _authorized_ to drive the finale. No `x-admin-key`.
 
-**Outbound calls need a service token.** When you call pricing `/reprice` and betting `/settle`
-(both now JWT-protected), sign a **service JWT** with `signToken('simulator')` from
-`@arena/service-auth` (it reads the shared `SESSION_SECRET`) and send it as `Authorization: Bearer`.
-For betting `/settle`, ALSO send betting's `x-admin-key` — read from your own env
-(`BETTING_ADMIN_KEY`) — because settlement moves money. Full platform auth model:
+**Outbound calls need an admin service token.** When you call pricing (`/reprice`, and `/reset` in
+the cascade) and betting (`/settle`, and `/reset` in the cascade) — all JWT-protected, and the
+mutating ones admin-only — sign an **admin service JWT** with `signToken('simulator', { admin: true })`
+from `@arena/service-auth` (it reads the shared `SESSION_SECRET`) and send it as `Authorization: Bearer`.
+The `admin` claim carries the authority — there is no `x-admin-key`. Full platform auth model:
 `docs/engineering/integration.md` §1.
 
 ## Enterprise bar
@@ -80,8 +80,8 @@ For betting `/settle`, ALSO send betting's `x-admin-key` — read from your own 
   unit-tested — this is the piece that silently breaks brackets.
 - HTTP calls to pricing/betting in one thin injectable client — resolve base URLs env-first
   (`process.env.PRICING_URL ?? BASE_URLS.pricing`, `process.env.BETTING_URL ?? BASE_URLS.betting`),
-  attach the service token (and betting's `x-admin-key`), and zod-parse every response
-  (`MarketSchema`, `SettleResponseSchema`). Tested with mocked fetch.
+  attach the admin service token (the `admin` claim authorizes settle/reset — no `x-admin-key`), and
+  zod-parse every response (`MarketSchema`, `SettleResponseSchema`, `ResetResponseSchema`). Tested with mocked fetch.
 - ≥85% coverage on everything you commit; zero lint warnings; no cross-workstream imports.
 
 ## Definition of Done
@@ -94,19 +94,22 @@ these — paste the name of the test for each:
 - Result generation is deterministic under a fixed seed
 - **`winningSelections` resolves the winning `selectionId` BY team name** from a real-shaped
   `Market[]` (the §3 join) — including the `OUTRIGHT` champion when the final is played
-- **Control endpoints reject without a valid `x-admin-key`** (`/play-next`, `/run`, `/reset` →
-  401); `GET /state` requires a Bearer JWT
+- **Control endpoints require admin** (`/play-next`, `/run`, `/reset`): **403** for a valid
+  **non-admin** token, **401** for a missing/invalid token, success for a token with the `admin`
+  claim (shared `AdminGuard`); `GET /state` requires any valid Bearer JWT
 - **`GET /state` exposes the live bracket** — a played fixture shows `finished` + scores +
-  `winnerTeamId` + the advanced winner in the next slot
+  `winnerTeamId` + the advanced winner in the next slot; **the bracket persists** (write-through to
+  Postgres + reload on boot), so a restart doesn't lose it
 - `POST /play-next`, `POST /run`, `GET /state`, `POST /reset` all work; `play-next` calls
-  pricing `/reprice` then betting `/settle` (mocked fetch) and survives either being down
+  pricing `/reprice` then betting `/settle` (mocked fetch) and survives either being down;
+  **`/reset` cascades** to pricing `/reset` + betting `/reset` (and degrades gracefully if either is down)
 
 ## Demo moment
 
 `curl -X POST :4003/run -d '{"intervalMs": 2000}' -H 'content-type: application/json' -H
-"authorization: Bearer $JWT" -H "x-admin-key: $SIMULATOR_ADMIN_KEY"` and the whole room watches the
-tournament resolve every two seconds — bets settling, odds recomputing, bracket collapsing to a
-champion.
+"authorization: Bearer $ADMIN_JWT"` (an admin operator's token, or a service token) and the whole
+room watches the tournament resolve every two seconds — bets settling, odds recomputing, bracket
+collapsing to a champion.
 
 ## Stretch
 

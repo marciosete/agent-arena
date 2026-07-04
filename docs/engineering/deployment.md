@@ -33,24 +33,27 @@ services. The Vercel env vars point at these stable subdomains.
 
 Deploys happen all day; releases are flag flips:
 
+The trader-ops console is the release panel: **sign in with an admin email**
+(`ADMIN_EMAILS` on betting) and the flag toggles just work — flipping a flag reveals a
+feature in production with no deploy. Under the hood every call carries your Bearer token:
+
 ```bash
+# reads need any logged-in token; the flip needs an ADMIN token (see below)
+TOKEN=… # an admin operator's JWT (from signing in with an ADMIN_EMAILS address)
+
 # see the flag board
-curl https://flags.hackathon.beer/flags | jq
+curl https://flags.hackathon.beer/flags -H "authorization: Bearer $TOKEN" | jq
 
 # RELEASE the markets page to production — no deploy involved
-# (the admin key lives in services/flags/.env — writes are guarded)
 curl -X PUT https://flags.hackathon.beer/flags/punter-markets \
-  -H "x-admin-key: $FLAGS_ADMIN_KEY" \
+  -H "authorization: Bearer $TOKEN" \
   -H 'content-type: application/json' -d '{"enabled": true}'
 
 # kill switch: dark again in one second
 curl -X PUT https://flags.hackathon.beer/flags/punter-markets \
-  -H "x-admin-key: $FLAGS_ADMIN_KEY" \
+  -H "authorization: Bearer $TOKEN" \
   -H 'content-type: application/json' -d '{"enabled": false}'
 ```
-
-The trader-ops workstream builds a toggle panel for this, so by the finale you flip
-flags from the back office instead of curl.
 
 ## Gotchas
 
@@ -58,7 +61,7 @@ flags from the back office instead of curl.
   ~30–60s to wake. Pre-warm all four `/health` URLs before the show (it's in the
   run-of-show pre-flight), or upgrade the instances for the day.
 - **npm 11**: the build command pins it — same lockfile rule as CI.
-- **Flag writes are guarded**: `PUT /flags/:key` requires the `x-admin-key` header matching
-  the service's `FLAGS_ADMIN_KEY` (set on Render; value in `services/flags/.env`). Reads are
-  public. The trader-ops panel asks for the key once and keeps it in localStorage — it must
-  never be baked into the public bundle.
+- **Flag writes are admin-guarded by identity**: `PUT /flags/:key` needs a token with the
+  `admin` claim (`AdminGuard`) — stamped at login for `ADMIN_EMAILS` addresses. Reads need any
+  valid token. There is no `x-admin-key` and nothing to arm in the UI: the operator signs in
+  with an admin email and the release panel works.
