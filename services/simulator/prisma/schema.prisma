@@ -1,0 +1,28 @@
+// Simulator database schema.
+// The tournament bracket used to live only in memory ("ephemeral with a reset
+// button"). But pricing + betting are centralised (shared Postgres), so the
+// bracket — the source of truth for what's been played — must be centralised
+// too: otherwise a restart/cold-start silently reverts it while the money it
+// drives persists. One authoritative bracket, matching the one authoritative
+// pricing/betting data.
+//
+// Workflow: edit models -> npx prisma migrate dev --name <name> -> prisma generate.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("SIMULATOR_DATABASE_URL")
+}
+
+// The single live bracket. One row (id = 1) holding the whole SimState blob
+// (fixtures with their played results + champion). Simple + robust: no column
+// has to mirror every Fixture field, and the contract shape stays the source.
+model SimBracket {
+  id        Int      @id @default(1)
+  state     Json
+  updatedAt DateTime @updatedAt
+}

@@ -16,6 +16,7 @@ import {
 import { DownstreamClient } from './downstream.client';
 import { SimulatorService } from './simulator.service';
 import { FakeDownstream, SETTLE_OK } from './testing/fake-downstream';
+import { InMemoryBracketStore } from './testing/in-memory-bracket.store';
 import { jsonResponse } from './testing/http';
 import { matchWinnerMarket, outrightMarket } from './testing/markets';
 
@@ -26,12 +27,19 @@ const SEED_UNPLAYED_COUNT = FIXTURES.length - SEED_PLAYED.length;
 const FIRST_UNPLAYED_ID = 'R32-15'; // SUI v ALG — earliest kickoff still unplayed
 const SECOND_UNPLAYED_ID = 'R32-14'; // AUS v EGY
 
-function makeService(): { service: SimulatorService; downstream: FakeDownstream } {
+function makeService(store: InMemoryBracketStore = new InMemoryBracketStore()): {
+  service: SimulatorService;
+  downstream: FakeDownstream;
+  store: InMemoryBracketStore;
+} {
   // The provider closure runs only after construction, so the forward
   // reference to `service` is safe.
   const downstream: FakeDownstream = new FakeDownstream((): SimState => service.getState());
-  const service: SimulatorService = new SimulatorService(downstream as unknown as DownstreamClient);
-  return { service, downstream };
+  const service: SimulatorService = new SimulatorService(
+    downstream as unknown as DownstreamClient,
+    store
+  );
+  return { service, downstream, store };
 }
 
 async function playAll(service: SimulatorService): Promise<SimState> {
@@ -382,7 +390,7 @@ describe('SimulatorService', () => {
       });
       vi.stubGlobal('fetch', fetchMock);
 
-      const service = new SimulatorService(new DownstreamClient());
+      const service = new SimulatorService(new DownstreamClient(), new InMemoryBracketStore());
       const state = await service.playNext();
 
       expect(urls).toEqual([`${BASE_URLS.pricing}/reprice`, `${BASE_URLS.betting}/settle`]);
@@ -397,11 +405,55 @@ describe('SimulatorService', () => {
     it('survives both services being unreachable (fetch rejects)', async () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNREFUSED')));
 
-      const service = new SimulatorService(new DownstreamClient());
+      const service = new SimulatorService(new DownstreamClient(), new InMemoryBracketStore());
       const state = await service.playNext();
 
       expect(state.playedFixtureIds).toEqual([...SEED_PLAYED, FIRST_UNPLAYED_ID]);
       expect(state.fixtures.find((f) => f.id === FIRST_UNPLAYED_ID)?.winnerTeamId).not.toBeNull();
+    });
+  });
+
+  describe('persistence (write-through + restore)', () => {
+    it('restores the persisted bracket on boot instead of the seed', async () => {
+      // A prior process played one fixture and persisted it.
+      const seeded = makeService();
+      await seeded.service.playNext();
+      const persisted = seeded.store.peek();
+      expect(persisted?.playedFixtureIds).toEqual([...SEED_PLAYED, FIRST_UNPLAYED_ID]);
+
+      // A fresh service pointed at the same store restores that bracket.
+      const restored = makeService(new InMemoryBracketStore(persisted));
+      await restored.service.onModuleInit();
+      expect(restored.service.getState().playedFixtureIds).toEqual([
+        ...SEED_PLAYED,
+        FIRST_UNPLAYED_ID,
+      ]);
+    });
+
+    it('seeds the store on first boot when nothing is persisted', async () => {
+      const { service, store } = makeService();
+      await service.onModuleInit();
+      expect(store.saveCount).toBe(1);
+      expect(store.peek()?.playedFixtureIds).toEqual(SEED_PLAYED);
+    });
+
+    it('writes through on every play and on reset', async () => {
+      const { service, store } = makeService();
+      await service.playNext();
+      expect(store.peek()?.playedFixtureIds).toEqual([...SEED_PLAYED, FIRST_UNPLAYED_ID]);
+      await service.reset();
+      expect(store.peek()?.playedFixtureIds).toEqual(SEED_PLAYED);
+    });
+
+    it('a store failure never breaks a play (best-effort persistence)', async () => {
+      const flaky = new InMemoryBracketStore();
+      flaky.save = () => Promise.reject(new Error('db down'));
+      const service: SimulatorService = new SimulatorService(
+        new FakeDownstream((): SimState => service.getState()) as unknown as DownstreamClient,
+        flaky
+      );
+      const state = await service.playNext();
+      expect(state.playedFixtureIds).toEqual([...SEED_PLAYED, FIRST_UNPLAYED_ID]);
     });
   });
 });

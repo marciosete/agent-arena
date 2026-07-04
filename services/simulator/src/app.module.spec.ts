@@ -5,9 +5,11 @@ import { signToken } from '@arena/service-auth';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { FIXTURES, HealthResponseSchema, SimStateSchema } from '@arena/contracts';
 import { AppModule } from './app.module';
+import { BracketStore } from './simulator/bracket.store';
 import { DownstreamClient } from './simulator/downstream.client';
 import { SimulatorService } from './simulator/simulator.service';
 import { FakeDownstream } from './simulator/testing/fake-downstream';
+import { InMemoryBracketStore } from './simulator/testing/in-memory-bracket.store';
 
 // Every non-@Public route requires a session JWT (the default dev secret is fine
 // in tests). Control routes additionally require the token's `admin` claim — the
@@ -29,6 +31,9 @@ describe('AppModule (e2e)', () => {
     })
       .overrideProvider(DownstreamClient)
       .useValue(downstream)
+      // In-memory store so the e2e never touches a real database.
+      .overrideProvider(BracketStore)
+      .useValue(new InMemoryBracketStore())
       .compile();
     app = moduleRef.createNestApplication();
     await app.init();

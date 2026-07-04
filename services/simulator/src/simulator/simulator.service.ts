@@ -1,18 +1,22 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import type { SettlementEvent, SimState } from '@arena/contracts';
 import { initialSimState, playNextFixture } from './engine';
 import { createRng, type Rng } from './rng';
 import { DownstreamClient } from './downstream.client';
+import { BracketStore } from './bracket.store';
 import { resolveWinningSelections } from './winning-selections';
 
 /**
- * Holds the simulated bracket. In-memory BY DESIGN: the simulation is
- * ephemeral state with a reset button, not a system of record.
+ * Holds the simulated bracket. The in-memory copy is the fast read path, but it
+ * is WRITTEN THROUGH to the database on every mutation and RELOADED on boot, so
+ * the bracket survives restarts/cold-starts and is centralised alongside
+ * pricing + betting (one authoritative bracket, not per-process). Persistence is
+ * best-effort: a store failure logs and degrades rather than corrupting a play.
  *
  * Set SIM_SEED to make a whole run reproducible; unset, each run differs.
  */
 @Injectable()
-export class SimulatorService {
+export class SimulatorService implements OnModuleInit {
   private readonly logger = new Logger(SimulatorService.name);
   private state: SimState = initialSimState();
   private rng: Rng = createRng(this.resolveSeed());
@@ -23,7 +27,35 @@ export class SimulatorService {
   /** Serializes plays so settlements reach pricing in bracket order. */
   private playQueue: Promise<unknown> = Promise.resolve();
 
-  constructor(private readonly downstream: DownstreamClient) {}
+  constructor(
+    private readonly downstream: DownstreamClient,
+    private readonly store: BracketStore
+  ) {}
+
+  /** Restore the persisted bracket on boot; seed the store on first run. */
+  async onModuleInit(): Promise<void> {
+    try {
+      const persisted = await this.store.load();
+      if (persisted) {
+        this.state = persisted;
+        this.logger.log(`bracket restored from store: ${persisted.playedFixtureIds.length} played`);
+      } else {
+        await this.store.save(this.state);
+        this.logger.log('no persisted bracket — seeded the store from the fixtures');
+      }
+    } catch (error) {
+      this.logger.warn(`bracket load failed; starting from the seed — ${message(error)}`);
+    }
+  }
+
+  /** Best-effort write-through: persist the current bracket, never throw. */
+  private async persist(): Promise<void> {
+    try {
+      await this.store.save(this.state);
+    } catch (error) {
+      this.logger.warn(`bracket persist failed (in-memory state is current) — ${message(error)}`);
+    }
+  }
 
   getState(): SimState {
     return this.state;
@@ -44,6 +76,7 @@ export class SimulatorService {
     this.activeRunGeneration = null;
     this.rng = createRng(this.resolveSeed());
     this.state = initialSimState();
+    await this.persist();
     await this.resetDownstream();
     return this.state;
   }
@@ -105,6 +138,9 @@ export class SimulatorService {
       return this.state;
     }
     this.state = outcome.state;
+    // Persist the played result before fanning out, so a slow/failed reprice
+    // can't cost us the bracket advance on a restart.
+    await this.persist();
     await this.fanOut(outcome.settlement, outcome.isFinal, generation);
     return this.state;
   }

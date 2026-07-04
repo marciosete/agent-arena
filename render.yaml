@@ -59,6 +59,9 @@ services:
       # Mints admin service tokens (signToken('simulator',{admin:true})) to reprice/settle/reset.
       - key: SESSION_SECRET
         sync: false
+      # The persisted bracket — one authoritative, centralised copy that survives restarts.
+      - key: SIMULATOR_DATABASE_URL
+        sync: false
       # The finale + Reset-bracket cascade fan out to these (localhost fallback is dev-only).
       - key: PRICING_URL
         value: https://pricing.hackathon.beer
